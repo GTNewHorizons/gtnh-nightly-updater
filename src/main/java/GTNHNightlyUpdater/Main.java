@@ -2,7 +2,6 @@ package GTNHNightlyUpdater;
 
 import GTNHNightlyUpdater.Models.Assets;
 import lombok.Cleanup;
-import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
 
@@ -11,11 +10,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,13 +29,11 @@ public class Main {
         public static Path modsDir;
         public static Path cacheDir;
         public static boolean useLatest;
-
         public static boolean useSymlinks;
     }
 
     // todo: error handling
-    @SneakyThrows
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Throwable {
         setupConfig(args);
 
         val assets = fetchAssets();
@@ -93,7 +87,6 @@ public class Main {
             if (mod.side().equals("NONE") || mod.versions().isEmpty()) {
                 continue;
             }
-
 
         }
     }
