@@ -1,9 +1,15 @@
 package GTNHNightlyUpdater;
 
 import GTNHNightlyUpdater.Models.Assets;
+import GTNHNightlyUpdater.Models.MavenSearch;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 
 import java.io.IOException;
 import java.net.URI;
@@ -12,87 +18,290 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-@Log4j2
+@Log4j2(topic = "GTNHNightlyUpdater")
 public class Main {
 
     public static class Config {
+        public static String side;
         public static Path minecraftDir;
-        public static Path modsDir;
-        public static Path cacheDir;
+        public static Path minecraftModsDir;
+        public static Path modCacheDir;
+
+        // used to store any additional mods; same format as the DAXXL assets file
+        public static Path localAssetFile;
+
+        // used to store any mods to remove; takes mod name found in assets file
+        public static Set<String> modExclusions;
         public static boolean useLatest;
         public static boolean useSymlinks;
     }
 
     // todo: error handling
     public static void main(String[] args) throws Throwable {
-        setupConfig(args);
+        parseArgs(args);
 
-        val assets = fetchAssets();
+        val assets = fetchDAXXLAssets();
+        if (Config.useLatest) {
+            updateModsFromMaven(assets);
+        }
+        cacheMods(assets);
         val packMods = gatherExistingMods();
+        updateModpackMods(assets, packMods);
     }
 
-    static void setupConfig(String[] args) throws IOException {
-        if (args.length == 0) {
-            log.fatal("Usage: java gtnh-nightly-updater <Minecraft directory> [--latest] [--symlink]");
+    private static void parseArgs(String[] args) throws ParseException, IOException {
+        Options opts = new Options();
+        opts.addRequiredOption("s", "side", true, "Side of minecraft directory; CLIENT or SERVER");
+        opts.addRequiredOption("m", "minecraft", true, "Target minecraft directory");
+        opts.addOption("l", "latest", false, "Use latest github release instead of nightly version");
+        opts.addOption("S", "symlinks", false, "Use symlinks instead of copying mods from the cache; Linux only");
+
+        CommandLineParser parser = new DefaultParser();
+        CommandLine cmd = parser.parse(opts, args);
+
+        Config.side = cmd.getOptionValue("side").toUpperCase();
+        if (!(Config.side.equals("SERVER") || Config.side.equals("CLIENT"))) {
+            log.fatal("Side must be CLIENT or SERVER");
             System.exit(1);
         }
 
-        Config.minecraftDir = Path.of(args[0]);
-        if (!Files.exists(Config.minecraftDir)) {
-            log.fatal("Minecraft Directory not found: {}", Config.minecraftDir.toString());
-            System.exit(1);
-        }
-        Config.modsDir = Path.of(Config.minecraftDir.toString(), "mods");
-        if (!Files.exists(Config.modsDir)) {
-            log.fatal("Mods Directory not found: {}", Config.modsDir.toString());
+        Config.minecraftDir = Path.of(cmd.getOptionValue("minecraft"));
+        Config.minecraftModsDir = Path.of(Config.minecraftDir.toString(), "mods");
+        if (!Files.exists(Config.minecraftModsDir)) {
+            log.fatal("Mods Directory not found: {}", Config.minecraftModsDir.toString());
             System.exit(1);
         }
 
         val osName = System.getProperty("os.name").toLowerCase();
         Path cacheDir;
-        if (osName.contains("win")){
+        if (osName.contains("win")) {
             cacheDir = Path.of(System.getenv("LOCALAPPDATA"));
         } else if (osName.contains("mac")) {
             cacheDir = Path.of(System.getProperty("user.home"), "Library", "Caches");
         } else {
             cacheDir = Path.of(System.getenv("XDG_CACHE_HOME"));
-            if (Files.notExists(cacheDir)){
+            if (Files.notExists(cacheDir)) {
                 cacheDir = Path.of(System.getProperty("user.home"), ".cache");
             }
         }
-        Config.cacheDir = Path.of(cacheDir.toString(), "gtnh-nightly-updater", "mods");
-        Files.createDirectory(cacheDir);
+        Config.modCacheDir = cacheDir.resolve("gtnh-nightly-updater").resolve("mods");
+        if (Files.notExists(Config.modCacheDir.getParent())) {
+            Files.createDirectory(Config.modCacheDir.getParent());
+        }
+        if (Files.notExists(Config.modCacheDir)) {
+            Files.createDirectory(Config.modCacheDir);
+        }
 
-        Config.useLatest = Arrays.asList(args).contains("--latest");
-        Config.useSymlinks = Arrays.asList(args).contains("--symlink");
+        Config.localAssetFile = Config.modCacheDir.resolveSibling("local-assets.json");
+        if (Files.exists(Config.modCacheDir.resolveSibling("mod-exclusions.txt"))) {
+            Config.modExclusions = new HashSet<>(Files.readAllLines(Config.modCacheDir.resolveSibling("mod-exclusions.txt")));
+        }
+
+        Config.useLatest = cmd.hasOption("latest");
+        Config.useSymlinks = cmd.hasOption("symlinks");
     }
 
-    static void cacheMods(Assets.GTNHAsset asset) {
-        log.debug("Caching nightly mods");
+    private static void updateModpackMods(Assets.Asset assets, Map<String, Path> packMods) throws IOException {
+        log.info("Updating modpack jars");
 
-
-        @Cleanup ExecutorService executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-
-        for (val mod : asset.mods()){
-            if (mod.side().equals("NONE") || mod.versions().isEmpty()) {
+        for (val mod : assets.mods()) {
+            if (mod.versions().isEmpty()) {
+                continue;
+            }
+            if (mod.side() != null && mod.side().equals("NONE")) {
+                for (val version : mod.versions()) {
+                    if (packMods.containsKey(version.filename().toLowerCase())) {
+                        log.info("\tDeleting mod with side of NONE: {} - {}", mod.name(), version.filename());
+                        //Files.deleteIfExists(packMods.get(version.filename()));
+                    }
+                }
+                continue;
+            }
+            // side being null == BOTH
+            if (mod.side() != null && !(mod.side().equalsIgnoreCase(Config.side) || mod.side().equalsIgnoreCase("BOTH"))) {
                 continue;
             }
 
+            if (Config.modExclusions != null && Config.modExclusions.contains(mod.name())) {
+                log.info("\tSkipping {} due to exclusion", mod.name());
+                continue;
+            }
+
+            Assets.Version modVersionToUse = Config.useLatest
+                    ? mod.versions().getLast()
+                    : mod.versions().stream()
+                    .filter(v -> v.version().equals(mod.latestVersion()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (modVersionToUse == null) {
+                log.warn("Unable to determine mod version for {}", mod.name());
+                continue;
+            }
+
+            val newModFileName = modVersionToUse.filename();
+            if (packMods.containsKey(newModFileName.toLowerCase())) {
+                continue;
+            }
+
+            String oldFileName = null;
+            // check for old nightly version
+            for (val version : mod.versions()) {
+                if (version.version().equals(modVersionToUse.version()))
+                    continue;
+
+
+                if (packMods.containsKey(version.filename().toLowerCase())) {
+                    //Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
+                    oldFileName = version.filename();
+                    break;
+                } else if (version.mavenFilename() != null && packMods.containsKey(version.mavenFilename().toLowerCase())) {
+                    //Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
+                    oldFileName = version.mavenFilename();
+                    break;
+                }
+            }
+
+            if (oldFileName != null) {
+                log.info("\tUpgrading {} - {} -> {}", mod.name(), oldFileName, newModFileName);
+            } else {
+                log.info("\tNew Mod {} - {}", mod.name(), newModFileName);
+            }
+
+            if (Config.useSymlinks) {
+                //Files.createSymbolicLink(Config.minecraftModsDir.resolve(newModFileName), Config.modCacheDir.resolve(newModFileName));
+            } else {
+                //Files.copy(Config.modCacheDir.resolve(newModFileName), Config.minecraftModsDir.resolve(newModFileName));
+            }
         }
     }
 
-    static Assets.GTNHAsset fetchAssets() throws IOException, InterruptedException {
-        log.debug("Fetching latest gtnh-assets.json");
+    static void updateModsFromMaven(Assets.Asset asset) throws IOException, InterruptedException {
+        log.info("Getting mod versions from maven");
+        @Cleanup HttpClient client = HttpClient.newHttpClient();
+
+        for (val mod : asset.mods()) {
+            // null source = our maven
+            if (mod.source() != null || ((mod.side() != null && mod.side().equals("NONE")) || mod.versions().isEmpty())) {
+                continue;
+            }
+
+            log.info("\t{}", mod.name());
+
+            // i know that nexus has a limit of 50 versions returned, but hopefully they shouldnt be that far behind
+            String url = String.format(
+                    "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets?&sort=version&repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier",
+                    mod.name()
+            );
+            val req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+            val resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+
+            val mavenVersions = JsonParser.parse(resp.body(), MavenSearch.Index.class);
+            if (mavenVersions == null) {
+                log.warn("Unable to parse maven response for {}", mod.name());
+                continue;
+            }
+            val versions = mavenVersions.items();
+            if (versions.size() == 0) {
+                log.warn("Unable to parse maven versions for {}", mod.name());
+                continue;
+            }
+
+            versions.sort(Comparator.comparing(MavenSearch.Item::lastModified));
+            // Update or add versions
+            int i = 0;
+            for (val version : versions) {
+                String versionString = version.maven2().version();
+                String mavenFilename = Path.of(version.downloadUrl()).getFileName().toString();
+
+                // Check if the version already exists
+                val existingVersion = mod.versions().stream()
+                        .filter(v -> v.version().equals(versionString))
+                        .findFirst();
+
+                if (existingVersion.isPresent()) {
+                    existingVersion.get().mavenFilename(mavenFilename);
+                } else {
+                    Assets.Version newVersion = new Assets.Version(
+                            mavenFilename,
+                            versionString.endsWith("-pre"),
+                            versionString,
+                            version.downloadUrl()
+                    );
+                    // insert version where it would be to not use an old version as the latest
+                    mod.versions().add(Math.min(i, mod.versions().size() - 1), newVersion);
+                }
+                i++;
+            }
+        }
+
+    }
+
+
+    static void cacheMods(Assets.Asset asset) throws IOException, InterruptedException {
+        log.info("Caching nightly mods");
+        @Cleanup HttpClient client = HttpClient.newHttpClient();
+        for (val mod : asset.mods()) {
+            if ((mod.side() != null && mod.side().equals("NONE")) || mod.versions().isEmpty()) {
+                continue;
+            }
+
+            Assets.Version modVersionToUse;
+            if (Config.useLatest && mod.source() == null) {
+                modVersionToUse = mod.versions().getLast();
+            } else {
+                val nightlyMod = mod.versions().stream().filter(v -> v.version().equals(mod.latestVersion())).findFirst();
+                if (nightlyMod.isPresent()) {
+                    modVersionToUse = nightlyMod.get();
+                } else {
+                    log.warn("Unable to find nightly version of {}: {}", mod.name(), mod.latestVersion());
+                    continue;
+                }
+            }
+
+            var targetPath = Config.modCacheDir.resolve(modVersionToUse.filename());
+
+            String downloadURL;
+            if (mod.source() != null) {
+                downloadURL = modVersionToUse.downloadUrl();
+            } else {
+                downloadURL = String.format(
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier&version=%s",
+                        mod.name(),
+                        modVersionToUse.version()
+                );
+            }
+
+
+            if (Files.exists(targetPath)) {
+                continue;
+            }
+
+            log.info("\t{}", mod.name());
+            val request = HttpRequest.newBuilder()
+                    .uri(URI.create(downloadURL))
+                    .GET()
+                    .build();
+            val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (!(response.statusCode() == 200 || response.statusCode() == 302)) {
+                throw new IOException(String.format("Failed to fetch jar: %s - %d", downloadURL, response.statusCode()));
+            }
+            Files.write(targetPath, response.body());
+        }
+
+    }
+
+    static Assets.Asset fetchDAXXLAssets() throws IOException, InterruptedException {
+        log.info("Fetching latest gtnh-assets.json");
 
         @Cleanup HttpClient client = HttpClient.newHttpClient();
 
@@ -106,16 +315,16 @@ public class Main {
             throw new IOException("Failed to fetch assets file: HTTP " + response.statusCode());
         }
 
-        return JsonParser.parse(response.body(), Assets.GTNHAsset.class);
+        return JsonParser.parse(response.body(), Assets.Asset.class);
     }
 
     static Map<String, Path> gatherExistingMods() throws IOException {
         log.info("Gathering existing mods");
 
-        return Files.list(Config.modsDir)
+        return Files.list(Config.minecraftModsDir)
                 .filter(path -> path.toString().endsWith(".jar"))
                 .collect(Collectors.toMap(
-                        path -> path.getFileName().toString(),
+                        path -> path.getFileName().toString().toLowerCase(),
                         path -> path
                 ));
     }

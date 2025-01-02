@@ -11,9 +11,9 @@ plugins {
     id("com.palantir.git-version") version "3.0.0"
 }
 
-val gitVersion: groovy.lang.Closure<String> by extra
 
 group = "com.gtnewhorizons"
+val gitVersion: groovy.lang.Closure<String> by extra
 val detectedVersion: String = System.getenv("VERSION") ?: gitVersion()
 version = detectedVersion
 
@@ -34,6 +34,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("org.apache.logging.log4j:log4j-api:2.20.0")
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
+    implementation("commons-cli:commons-cli:1.9.0")
     compileOnly("org.projectlombok:lombok:1.18.36")
     annotationProcessor("org.projectlombok:lombok:1.18.36")
 
@@ -51,7 +52,12 @@ java {
 application {
     // Define the main class for the application
     mainClass = "GTNHNightlyUpdater.Main"
+    tasks {
+        run.get().args = listOf("-m", "/mnt/games/Minecraft/Instances/GTNHNightlyUpdateTest/.minecraft/", "-s", "CLIENT", "-l")
+    }
+    //applicationDefaultJvmArgs = listOf("-m", "/mnt/games/Minecraft/Instances/GTNHNightlyUpdateTest/.minecraft/", "-s", "CLIENT")
 }
+
 
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
