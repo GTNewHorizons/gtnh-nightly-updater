@@ -52,8 +52,9 @@ java {
 application {
     mainClass = "GTNHNightlyUpdater.Main"
     tasks {
+        // command line args example in a dev env
         //run.get().args = listOf("-m", "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/", "-s", "CLIENT", "-l")
-        run.get().args = listOf("-m", "/mnt/docker/appdata/minecraft/gtnh/", "-s", "SERVER", "-l")
+        //run.get().args = listOf("-m", "/mnt/docker/appdata/minecraft/gtnh/", "-s", "SERVER", "-l")
     }
 }
 
