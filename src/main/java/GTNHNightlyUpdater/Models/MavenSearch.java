@@ -1,10 +1,12 @@
 package GTNHNightlyUpdater.Models;
 
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+
 import java.util.Date;
 import java.util.List;
 
 public class MavenSearch {
-    public record Index(List<Item> items) {
+    public record Index(List<Item> items, String continuationToken) {
     }
 
     public record Item(

@@ -30,7 +30,7 @@ dependencies {
 
     // This dependency is used by the application.
     implementation(libs.guava)
-    
+    implementation("org.apache.maven:maven-artifact:3.9.9")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("org.apache.logging.log4j:log4j-api:2.20.0")
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
@@ -50,12 +50,11 @@ java {
 }
 
 application {
-    // Define the main class for the application
     mainClass = "GTNHNightlyUpdater.Main"
     tasks {
-        run.get().args = listOf("-m", "/mnt/games/Minecraft/Instances/GTNHNightlyUpdateTest/.minecraft/", "-s", "CLIENT", "-l")
+        //run.get().args = listOf("-m", "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/", "-s", "CLIENT", "-l")
+        run.get().args = listOf("-m", "/mnt/docker/appdata/minecraft/gtnh/", "-s", "SERVER", "-l")
     }
-    //applicationDefaultJvmArgs = listOf("-m", "/mnt/games/Minecraft/Instances/GTNHNightlyUpdateTest/.minecraft/", "-s", "CLIENT")
 }
 
 
