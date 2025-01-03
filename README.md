@@ -17,7 +17,7 @@ Java: Version 21 or later.
 
 #### Example Command
 
-`java -jar gtnh-updater.jar -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" -l`
+`java -jar gtnh-nightly-updater.jar -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" -l`
 
 ### Caching
 The cache directory can be found at:  
