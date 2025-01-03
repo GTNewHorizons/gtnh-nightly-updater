@@ -6,7 +6,7 @@
  */
 
 plugins {
-    // Apply the application plugin to add support for building a CLI application in Java.
+    id("java")
     application
     id("com.palantir.git-version") version "3.0.0"
 }
@@ -58,10 +58,20 @@ application {
     }
 }
 
-
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
     // Skip git-based versioning inside the tests
     environment("VERSION", "1.0.0")
+}
+
+tasks {
+    withType<Jar> {
+        manifest {
+            attributes["Main-Class"] = application.mainClass
+        }
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        // here zip stuff found in runtimeClasspath:
+        from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    }
 }
