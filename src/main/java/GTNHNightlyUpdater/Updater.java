@@ -226,7 +226,7 @@ public class Updater {
 
     void cacheMods(Assets.Asset asset, Path modCacheDir) throws IOException, InterruptedException {
         log.info("Caching nightly mods");
-        @Cleanup HttpClient client = HttpClient.newHttpClient();
+        @Cleanup HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
         for (val mod : asset.mods()) {
             if ((mod.side() != null && mod.side().equals("NONE")) || mod.versions().isEmpty()) {
                 continue;
