@@ -6,6 +6,7 @@ import com.google.gson.internal.LinkedTreeMap;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
 import java.io.IOException;
@@ -171,7 +172,7 @@ public class Updater {
             // Update or add versions
             for (val version : versions) {
                 String versionString = version.maven2().version();
-                String mavenFilename = Path.of(version.downloadUrl()).getFileName().toString();
+                String mavenFilename = FilenameUtils.getName(version.downloadUrl());
 
                 // Check if the version already exists
                 val existingVersion = mod.versions().stream()
