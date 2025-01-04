@@ -18,7 +18,7 @@ Java: Version 21 or later.
 
 #### Example Command
 
-`java -jar gtnh-nightly-updater.jar --latest --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/""`
+`java -jar gtnh-nightly-updater.jar --latest --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/"`
 
 ### Caching
 The cache directory can be found at:  
