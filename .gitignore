@@ -4,11 +4,13 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+
+/.vs/
+/.vscode/
+
 ### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
+/.idea/
+layout.json
 *.iws
 *.iml
 *.ipr
@@ -35,8 +37,6 @@ bin/
 /nbdist/
 /.nb-gradle/
 
-### VS Code ###
-.vscode/
 
 ### Mac OS ###
 .DS_Store
