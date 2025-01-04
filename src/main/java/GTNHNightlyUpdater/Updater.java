@@ -56,6 +56,7 @@ public class Updater {
                     if (packMods.containsKey(version.filename().toLowerCase())) {
                         log.info("\tDeleting mod with side of NONE: {} - {}", mod.name(), version.filename());
                         Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
+                        packMods.remove(version.filename().toLowerCase());
                     }
                 }
                 continue;
@@ -66,6 +67,19 @@ public class Updater {
             }
 
             if (modExclusions.contains(mod.name())) {
+                for (val version : mod.versions()) {
+                    if (packMods.containsKey(version.filename().toLowerCase())) {
+                        log.info("\tDeleting excluded mod: {} - {}", mod.name(), version.filename());
+                        Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
+                        packMods.remove(version.filename().toLowerCase());
+                        break;
+                    } else if (version.mavenFilename() != null && packMods.containsKey(version.mavenFilename().toLowerCase())) {
+                        log.info("\tDeleting excluded mod: {} - {}", mod.name(), version.mavenFilename());
+                        Files.deleteIfExists(packMods.get(version.mavenFilename().toLowerCase()));
+                        packMods.remove(version.mavenFilename().toLowerCase());
+                        break;
+                    }
+                }
                 log.info("\tSkipping {} due to exclusion", mod.name());
                 continue;
             }
@@ -92,10 +106,12 @@ public class Updater {
             for (val version : mod.versions()) {
                 if (packMods.containsKey(version.filename().toLowerCase())) {
                     Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
+                    packMods.remove(version.filename().toLowerCase());
                     oldFileName = version.filename();
                     break;
                 } else if (version.mavenFilename() != null && packMods.containsKey(version.mavenFilename().toLowerCase())) {
                     Files.deleteIfExists(packMods.get(version.mavenFilename().toLowerCase()));
+                    packMods.remove(version.mavenFilename().toLowerCase());
                     oldFileName = version.mavenFilename();
                     break;
                 }
@@ -120,6 +136,7 @@ public class Updater {
             } else {
                 Files.copy(modCacheDir.resolve(newModFileName), minecraftModsDir.resolve(newModFileName));
             }
+            packMods.put(newModFileName, minecraftModsDir.resolve(newModFileName));
         }
     }
 
