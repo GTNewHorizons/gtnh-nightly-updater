@@ -55,15 +55,15 @@ application {
     mainClass = "GTNHNightlyUpdater.Main"
     tasks {
         // command line args example in a dev env
-        run.get().args = listOf(
-                "-l",
-                "--add",
-                "-m", "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/",
-                "-s", "CLIENT",
-                "--add",
-                "-m", "/mnt/docker/appdata/minecraft/gtnh/",
-                "-s", "server"
-        )
+//        run.get().args = listOf(
+//                "-l",
+//                "--add",
+//                "-m", "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/",
+//                "-s", "CLIENT",
+//                "--add",
+//                "-m", "/mnt/docker/appdata/minecraft/gtnh/",
+//                "-s", "server"
+//        )
     }
 }
 
