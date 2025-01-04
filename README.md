@@ -8,16 +8,17 @@ Java: Version 21 or later.
 
 ### Usage
 #### Command-Line Options
-|Option|Description|  
-|---|---|
-| -s, --side|Required. Specify the side (CLIENT or SERVER).|  
-|-m, --minecraft|Required. Path to the target Minecraft directory.  
-|-l, --latest|Optional. Use the latest release instead of the specific nightly version.|  
-|-S, --symlinks|Optional. Use symlinks instead of copying mods. Mac/Linux only|  
+|Option| Description                                                               |  
+|---|---------------------------------------------------------------------------|
+|-l, --latest| Optional. Use the latest release instead of the specific nightly version. |  
+|--add| Required. Can be repeated. Adds an instance to updater using the below flags                    |
+|-m, --minecraft| Required. Path to the target Minecraft directory.                         
+| -s, --side| Required. Specify the side (CLIENT or SERVER).                            |
+|-S, --symlinks| Optional. Use symlinks instead of copying mods. Mac/Linux only            |  
 
 #### Example Command
 
-`java -jar gtnh-nightly-updater.jar -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" -l`
+`java -jar gtnh-nightly-updater.jar --latest --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/""`
 
 ### Caching
 The cache directory can be found at:  
