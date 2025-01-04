@@ -15,8 +15,7 @@ import java.util.Set;
 
 @Log4j2(topic = "GTNHNightlyUpdater-Main")
 public class Main {
-    // todo: error handling
-    public static void main(String[] args) throws Throwable {
+    public static void main(String[] args) {
         val options = new Options();
         try {
             new CommandLine(options)
@@ -75,7 +74,7 @@ public class Main {
             }
         }
 
-        if (Files.notExists(cacheDir)){
+        if (Files.notExists(cacheDir)) {
             throw new RuntimeException(String.format("Cache directory not found: `%s`", cacheDir));
         }
         return cacheDir;
@@ -114,7 +113,7 @@ public class Main {
                 void setMinecraftDir(String value) {
                     val path = Path.of(value);
                     if (!Files.exists(path)) {
-                        throw new CommandLine.ParameterException(spec.commandLine(), String.format("Invalid value '%s' for option '--minecraft': path does not exist"));
+                        throw new CommandLine.ParameterException(spec.commandLine(), String.format("Invalid value '%s' for option '--minecraft': path does not exist", path));
                     }
                     this.minecraftDir = path;
                 }

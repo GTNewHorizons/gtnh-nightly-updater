@@ -221,8 +221,6 @@ public class Updater {
                 mod.versions().sort(Comparator.comparing(v -> new DefaultArtifactVersion(v.version())));
             }
         }
-
-
     }
 
 
