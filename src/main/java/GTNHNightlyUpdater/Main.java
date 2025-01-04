@@ -90,14 +90,14 @@ public class Main {
 
     @ToString
     static class Options {
-        @CommandLine.Option(names = {"-l", "--latest"})
+        @CommandLine.Option(names = {"-l", "--latest"}, description = "Use the latest version of GTNH org mods instead of the latest nightly.")
         private boolean useLatest = false;
 
         @CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
         List<Instance> instances;
 
         static class Instance {
-            @CommandLine.Option(names = "--add", required = true)
+            @CommandLine.Option(names = "--add", required = true, description = "Used to add instances to be updated; Allows for updating a client and server at the same time.")
             boolean add_instance; // leave this for the option
 
             @CommandLine.ArgGroup(exclusive = false, multiplicity = "1")
@@ -109,7 +109,7 @@ public class Main {
                 @CommandLine.Spec
                 CommandLine.Model.CommandSpec spec;
 
-                @CommandLine.Option(names = {"-m", "--minecraft"}, required = true)
+                @CommandLine.Option(names = {"-m", "--minecraft"}, required = true, description = "Path to the base minecraft folder to be updated (it contains the mods and config folder).")
                 void setMinecraftDir(String value) {
                     val path = Path.of(value);
                     if (!Files.exists(path)) {
@@ -118,7 +118,7 @@ public class Main {
                     this.minecraftDir = path;
                 }
 
-                @CommandLine.Option(names = {"-s", "--side"}, required = true, description = "Valid values: ${COMPLETION-CANDIDATES}")
+                @CommandLine.Option(names = {"-s", "--side"}, required = true, description = "Denotes the mods that should be used; Valid values: ${COMPLETION-CANDIDATES}")
                 @Getter
                 Side side;
 
@@ -127,7 +127,7 @@ public class Main {
                     SERVER
                 }
 
-                @CommandLine.Option(names = {"-S", "--symlinks"})
+                @CommandLine.Option(names = {"-S", "--symlinks"}, description = "Use symlinks instead of copying files to the mods directory; Mac/Linux only. Must be on the same filesystem.")
                 @Getter
                 private boolean useSymlinks = false;
             }
