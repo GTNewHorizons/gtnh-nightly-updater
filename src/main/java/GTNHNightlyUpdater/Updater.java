@@ -54,7 +54,7 @@ public class Updater {
                 for (val version : mod.versions()) {
                     if (packMods.containsKey(version.filename().toLowerCase())) {
                         log.info("\tDeleting mod with side of NONE: {} - {}", mod.name(), version.filename());
-                        Files.deleteIfExists(packMods.get(version.filename()));
+                        Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
                     }
                 }
                 continue;
