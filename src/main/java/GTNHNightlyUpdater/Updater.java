@@ -213,7 +213,7 @@ public class Updater {
 
             // edge cases for mods
             // reason: 0.55 -> 0.6+
-            if (mod.name().equals("BlockLimiter")) {
+            if (mod.name().equals("BlockLimiter") || mod.name().equals("oauth")) {
                 mod.versions().removeIf(v -> v.filename().contains("-1.7.10-"));
             }
 
