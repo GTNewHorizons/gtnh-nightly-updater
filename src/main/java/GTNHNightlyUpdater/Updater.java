@@ -18,12 +18,20 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Log4j2(topic = "GTNHNightlyUpdater")
 public class Updater {
-    static void addLocalAssets(Assets.Asset assets) throws IOException {
-        val lines = Files.readAllLines(Main.Config.localAssetFile);
+
+    private final boolean useLatest;
+
+    public Updater(boolean useLatest) {
+        this.useLatest = useLatest;
+    }
+
+    void addLocalAssets(Assets.Asset assets, Path localAssets) throws IOException {
+        val lines = Files.readAllLines(localAssets);
         for (val line : lines) {
             val split = line.split("\\|");
             val modName = split[0].trim();
@@ -33,7 +41,9 @@ public class Updater {
         }
     }
 
-    static void updateModpackMods(Assets.Asset assets, Map<String, Path> packMods) throws IOException {
+    void updateModpackMods(Assets.Asset assets, Path modCacheDir, Set<String> modExclusions, Main.Options.Instance.InstanceConfig instanceConfig) throws IOException {
+        var minecraftModsDir = instanceConfig.getMinecraftDir().resolve("mods");
+        val packMods = this.gatherExistingMods(minecraftModsDir);
         log.info("Updating modpack jars");
 
         for (val mod : assets.mods()) {
@@ -50,16 +60,16 @@ public class Updater {
                 continue;
             }
             // side being null == BOTH
-            if (mod.side() != null && !(mod.side().equalsIgnoreCase(Main.Config.side) || mod.side().equalsIgnoreCase("BOTH"))) {
+            if (mod.side() != null && !(mod.side().equalsIgnoreCase(String.valueOf(instanceConfig.side)) || mod.side().equalsIgnoreCase("BOTH"))) {
                 continue;
             }
 
-            if (Main.Config.modExclusions != null && Main.Config.modExclusions.contains(mod.name())) {
+            if (modExclusions.contains(mod.name())) {
                 log.info("\tSkipping {} due to exclusion", mod.name());
                 continue;
             }
 
-            Assets.Version modVersionToUse = Main.Config.useLatest
+            Assets.Version modVersionToUse = this.useLatest
                     ? mod.versions().getLast()
                     : mod.versions().stream()
                     .filter(v -> v.version().equals(mod.latestVersion()))
@@ -100,15 +110,19 @@ public class Updater {
                 log.info("\tNew Mod {} - {}", mod.name(), newModFileName);
             }
 
-            if (Main.Config.useSymlinks) {
-                Files.createSymbolicLink(Main.Config.minecraftModsDir.resolve(newModFileName), Main.Config.modCacheDir.resolve(newModFileName));
+            if (Files.notExists(modCacheDir.resolve(newModFileName))) {
+                throw new RuntimeException(String.format("Unable to find '%s'", modCacheDir.resolve(newModFileName)));
+            }
+
+            if (instanceConfig.isUseSymlinks()) {
+                Files.createSymbolicLink(minecraftModsDir.resolve(newModFileName), modCacheDir.resolve(newModFileName));
             } else {
-                Files.copy(Main.Config.modCacheDir.resolve(newModFileName), Main.Config.minecraftModsDir.resolve(newModFileName));
+                Files.copy(modCacheDir.resolve(newModFileName), minecraftModsDir.resolve(newModFileName));
             }
         }
     }
 
-    static void updateModsFromMaven(Assets.Asset asset) throws IOException, InterruptedException {
+    void updateModsFromMaven(Assets.Asset asset) throws IOException, InterruptedException {
         log.info("Getting mod versions from maven");
         @Cleanup HttpClient client = HttpClient.newHttpClient();
 
@@ -194,7 +208,7 @@ public class Updater {
     }
 
 
-    static void cacheMods(Assets.Asset asset) throws IOException, InterruptedException {
+    void cacheMods(Assets.Asset asset, Path modCacheDir) throws IOException, InterruptedException {
         log.info("Caching nightly mods");
         @Cleanup HttpClient client = HttpClient.newHttpClient();
         for (val mod : asset.mods()) {
@@ -203,7 +217,7 @@ public class Updater {
             }
 
             Assets.Version modVersionToUse;
-            if (Main.Config.useLatest && mod.source() == null) {
+            if (this.useLatest && mod.source() == null) {
                 modVersionToUse = mod.versions().getLast();
             } else {
                 val nightlyMod = mod.versions().stream().filter(v -> v.version().equals(mod.latestVersion())).findFirst();
@@ -215,10 +229,10 @@ public class Updater {
                 }
             }
 
-            Path targetPath = Main.Config.modCacheDir.resolve(modVersionToUse.filename());
+            Path targetPath = modCacheDir.resolve(modVersionToUse.filename());
 
             String downloadURL;
-            if (Main.Config.useLatest || mod.source() != null) {
+            if (this.useLatest || mod.source() != null) {
                 downloadURL = modVersionToUse.downloadUrl();
             } else {
                 downloadURL = String.format(
@@ -247,7 +261,7 @@ public class Updater {
 
     }
 
-    static Assets.Asset fetchDAXXLAssets() throws IOException, InterruptedException {
+    Assets.Asset fetchDAXXLAssets() throws IOException, InterruptedException {
         log.info("Fetching latest gtnh-assets.json");
 
         @Cleanup HttpClient client = HttpClient.newHttpClient();
@@ -295,10 +309,10 @@ public class Updater {
         return asset;
     }
 
-    static Map<String, Path> gatherExistingMods() throws IOException {
+    Map<String, Path> gatherExistingMods(Path minecraftModsDir) throws IOException {
         log.info("Gathering existing mods");
 
-        return Files.list(Main.Config.minecraftModsDir)
+        return Files.list(minecraftModsDir)
                 .filter(path -> path.toString().endsWith(".jar"))
                 .collect(Collectors.toMap(
                         path -> path.getFileName().toString().toLowerCase(),

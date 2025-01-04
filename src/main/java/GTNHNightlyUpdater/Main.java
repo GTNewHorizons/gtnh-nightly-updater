@@ -1,76 +1,67 @@
 package GTNHNightlyUpdater;
 
+import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import picocli.CommandLine;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Log4j2(topic = "GTNHNightlyUpdater-Main")
 public class Main {
-
-    public static class Config {
-        public static String side;
-        public static Path minecraftDir;
-        public static Path minecraftModsDir;
-        public static Path modCacheDir;
-
-        // used to store any additional mods; foramt is `modName|side`; requires useLatest
-        public static Path localAssetFile;
-
-        // used to store any mods to remove; takes mod name found in assets file
-        public static Set<String> modExclusions;
-        public static boolean useLatest;
-        public static boolean useSymlinks;
-    }
-
     // todo: error handling
     public static void main(String[] args) throws Throwable {
-        parseArgs(args);
+        val options = new Options();
+        try {
+            new CommandLine(options)
+                    .setCaseInsensitiveEnumValuesAllowed(true)
+                    .parseArgs(args);
 
-        val assets = Updater.fetchDAXXLAssets();
-        if (Config.useLatest) {
-            if (Files.exists(Config.localAssetFile)) {
-                Updater.addLocalAssets(assets);
+            val updater = new Updater(options.useLatest);
+            val cacheDir = getCacheDir().resolve("gtnh-nightly-updater");
+            if (Files.notExists(cacheDir)) {
+                Files.createDirectory(cacheDir);
             }
-            Updater.updateModsFromMaven(assets);
+            val modExclusions = getModExclusions(cacheDir);
+
+            val assets = updater.fetchDAXXLAssets();
+            val localAssets = cacheDir.resolve("local-assets.txt");
+
+            val modCacheDir = cacheDir.resolve("mods");
+            if (Files.notExists(modCacheDir)) {
+                Files.createDirectory(modCacheDir);
+            }
+
+            if (options.useLatest) {
+                if (Files.exists(localAssets)) {
+                    updater.addLocalAssets(assets, localAssets);
+                }
+                updater.updateModsFromMaven(assets);
+            }
+            updater.cacheMods(assets, modCacheDir);
+            for (val instance : options.instances) {
+                log.info("Updating {} with side {}", instance.config.minecraftDir, instance.config.side);
+                updater.updateModpackMods(assets, modCacheDir, modExclusions, instance.config);
+            }
+
+        } catch (CommandLine.ParameterException e) {
+            log.fatal(e);
+            CommandLine.usage(options, System.out);
+            System.exit(2);
+        } catch (Exception e) {
+            log.fatal(e);
+            System.exit(1);
         }
-        Updater.cacheMods(assets);
-        val packMods = Updater.gatherExistingMods();
-        Updater.updateModpackMods(assets, packMods);
     }
 
-    private static void parseArgs(String[] args) throws ParseException, IOException {
-        Options opts = new Options();
-        opts.addRequiredOption("s", "side", true, "Side of minecraft directory; CLIENT or SERVER");
-        opts.addRequiredOption("m", "minecraft", true, "Target minecraft directory");
-        opts.addOption("l", "latest", false, "Use latest github release instead of nightly version");
-        opts.addOption("S", "symlinks", false, "Use symlinks instead of copying mods from the cache; Linux only");
 
-        CommandLineParser parser = new DefaultParser();
-        CommandLine cmd = parser.parse(opts, args);
-
-        Config.side = cmd.getOptionValue("side").toUpperCase();
-        if (!(Config.side.equals("SERVER") || Config.side.equals("CLIENT"))) {
-            log.fatal("Side must be CLIENT or SERVER");
-            System.exit(1);
-        }
-
-        Config.minecraftDir = Path.of(cmd.getOptionValue("minecraft"));
-        Config.minecraftModsDir = Path.of(Config.minecraftDir.toString(), "mods");
-        if (!Files.exists(Config.minecraftModsDir)) {
-            log.fatal("Mods Directory not found: {}", Config.minecraftModsDir.toString());
-            System.exit(1);
-        }
-
+    private static Path getCacheDir() {
         val osName = System.getProperty("os.name").toLowerCase();
         Path cacheDir;
         if (osName.contains("win")) {
@@ -83,20 +74,64 @@ public class Main {
                 cacheDir = Path.of(System.getProperty("user.home"), ".cache");
             }
         }
-        Config.modCacheDir = cacheDir.resolve("gtnh-nightly-updater").resolve("mods");
-        if (Files.notExists(Config.modCacheDir.getParent())) {
-            Files.createDirectory(Config.modCacheDir.getParent());
-        }
-        if (Files.notExists(Config.modCacheDir)) {
-            Files.createDirectory(Config.modCacheDir);
-        }
 
-        Config.localAssetFile = Config.modCacheDir.resolveSibling("local-assets.txt");
-        if (Files.exists(Config.modCacheDir.resolveSibling("mod-exclusions.txt"))) {
-            Config.modExclusions = new HashSet<>(Files.readAllLines(Config.modCacheDir.resolveSibling("mod-exclusions.txt")));
+        if (Files.notExists(cacheDir)){
+            throw new RuntimeException(String.format("Cache directory not found: `%s`", cacheDir));
         }
+        return cacheDir;
+    }
 
-        Config.useLatest = cmd.hasOption("latest");
-        Config.useSymlinks = cmd.hasOption("symlinks");
+    private static Set<String> getModExclusions(Path cacheDir) throws IOException {
+        if (Files.exists(cacheDir.resolve("mod-exclusions.txt"))) {
+            return new HashSet<>(Files.readAllLines(cacheDir.resolve("mod-exclusions.txt")));
+        }
+        return new HashSet<>();
+    }
+
+
+    @ToString
+    static class Options {
+        @CommandLine.Option(names = {"-l", "--latest"})
+        private boolean useLatest = false;
+
+        @CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
+        List<Instance> instances;
+
+        static class Instance {
+            @CommandLine.Option(names = "--add", required = true)
+            boolean add_instance; // leave this for the option
+
+            @CommandLine.ArgGroup(exclusive = false, multiplicity = "1")
+            InstanceConfig config;
+
+            static class InstanceConfig {
+                @Getter
+                private Path minecraftDir;
+                @CommandLine.Spec
+                CommandLine.Model.CommandSpec spec;
+
+                @CommandLine.Option(names = {"-m", "--minecraft"}, required = true)
+                void setMinecraftDir(String value) {
+                    val path = Path.of(value);
+                    if (!Files.exists(path)) {
+                        throw new CommandLine.ParameterException(spec.commandLine(), String.format("Invalid value '%s' for option '--minecraft': path does not exist"));
+                    }
+                    this.minecraftDir = path;
+                }
+
+                @CommandLine.Option(names = {"-s", "--side"}, required = true, description = "Valid values: ${COMPLETION-CANDIDATES}")
+                @Getter
+                Side side;
+
+                enum Side {
+                    CLIENT,
+                    SERVER
+                }
+
+                @CommandLine.Option(names = {"-S", "--symlinks"})
+                @Getter
+                private boolean useSymlinks = false;
+            }
+        }
     }
 }

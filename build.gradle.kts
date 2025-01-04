@@ -34,7 +34,9 @@ dependencies {
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("org.apache.logging.log4j:log4j-api:2.20.0")
     implementation("org.apache.logging.log4j:log4j-core:2.20.0")
-    implementation("commons-cli:commons-cli:1.9.0")
+    implementation("info.picocli:picocli:4.7.6")
+    annotationProcessor("info.picocli:picocli-codegen:4.7.6")
+
     compileOnly("org.projectlombok:lombok:1.18.36")
     annotationProcessor("org.projectlombok:lombok:1.18.36")
 
@@ -53,8 +55,15 @@ application {
     mainClass = "GTNHNightlyUpdater.Main"
     tasks {
         // command line args example in a dev env
-        //run.get().args = listOf("-m", "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/", "-s", "CLIENT", "-l")
-        //run.get().args = listOf("-m", "/mnt/docker/appdata/minecraft/gtnh/", "-s", "SERVER", "-l")
+        run.get().args = listOf(
+                "-l",
+                "--add",
+                "-m", "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/",
+                "-s", "CLIENT",
+                "--add",
+                "-m", "/mnt/docker/appdata/minecraft/gtnh/",
+                "-s", "server"
+        )
     }
 }
 
