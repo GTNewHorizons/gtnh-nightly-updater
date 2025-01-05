@@ -50,7 +50,6 @@ public class Main {
             }
 
         } catch (CommandLine.ParameterException e) {
-            log.fatal(e);
             CommandLine.usage(options, System.out);
             System.exit(2);
         } catch (Exception e) {
@@ -93,7 +92,7 @@ public class Main {
         @CommandLine.Option(names = {"-l", "--latest"}, description = "Use the latest version of GTNH org mods instead of the latest nightly.")
         private boolean useLatest = false;
 
-        @CommandLine.ArgGroup(exclusive = false, multiplicity = "0..*")
+        @CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
         List<Instance> instances;
 
         static class Instance {
