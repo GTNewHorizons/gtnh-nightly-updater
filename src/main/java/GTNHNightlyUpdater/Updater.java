@@ -99,7 +99,7 @@ public class Updater {
             if (packMods.containsKey(modVersionToUse.filename().toLowerCase())) {
                 continue;
             }
-            if (packMods.containsKey(modVersionToUse.mavenFilename().toLowerCase())) {
+            if (modVersionToUse.mavenFilename() != null && packMods.containsKey(modVersionToUse.mavenFilename().toLowerCase())) {
                 continue;
             }
 
@@ -249,7 +249,7 @@ public class Updater {
                 }
             }
 
-            if (Files.exists(modCacheDir.resolve(modVersionToUse.filename())) || Files.exists(modCacheDir.resolve(modVersionToUse.mavenFilename()))) {
+            if (Files.exists(modCacheDir.resolve(modVersionToUse.filename())) || (modVersionToUse.mavenFilename() != null && Files.exists(modCacheDir.resolve(modVersionToUse.mavenFilename())))) {
                 continue;
             }
 
