@@ -96,10 +96,14 @@ public class Updater {
                 continue;
             }
 
-            String newModFileName = modVersionToUse.filename();
-            if (packMods.containsKey(newModFileName.toLowerCase())) {
+            if (packMods.containsKey(modVersionToUse.filename().toLowerCase())) {
                 continue;
             }
+            if (packMods.containsKey(modVersionToUse.mavenFilename().toLowerCase())) {
+                continue;
+            }
+
+            String newModFileName = modVersionToUse.filename();
 
             String oldFileName = null;
             // check for old nightly version
@@ -243,6 +247,10 @@ public class Updater {
                     log.warn("Unable to find nightly version of {}: {}", mod.name(), mod.latestVersion());
                     continue;
                 }
+            }
+
+            if (Files.exists(modCacheDir.resolve(modVersionToUse.filename())) || Files.exists(modCacheDir.resolve(modVersionToUse.mavenFilename()))) {
+                continue;
             }
 
             Path targetPath = modCacheDir.resolve(modVersionToUse.filename());
