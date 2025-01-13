@@ -53,7 +53,7 @@ public class Main {
             CommandLine.usage(options, System.out);
             System.exit(2);
         } catch (Exception e) {
-            log.fatal(e);
+            log.fatal("Fataled", e);
             System.exit(1);
         }
     }
@@ -65,11 +65,13 @@ public class Main {
         if (osName.contains("win")) {
             cacheDir = Path.of(System.getenv("LOCALAPPDATA"));
         } else if (osName.contains("mac")) {
-            cacheDir = Path.of(System.getProperty("user.home"), "Library", "Caches");
+            cacheDir = Path.of(System.getenv("HOME"), "Library", "Caches");
         } else {
-            cacheDir = Path.of(System.getenv("XDG_CACHE_HOME"));
-            if (Files.notExists(cacheDir)) {
-                cacheDir = Path.of(System.getProperty("user.home"), ".cache");
+            String cache = System.getenv("XDG_CACHE_HOME");
+            if (cache != null){
+                cacheDir = Path.of(cache);
+            } else {
+                cacheDir = Path.of(System.getenv("HOME"), ".cache");
             }
         }
 
