@@ -30,6 +30,15 @@ public class Main {
             val modExclusions = getModExclusions(cacheDir);
 
             val assets = updater.fetchDAXXLAssets();
+
+            if (options.configsOnly) {
+                for (val instance : options.instances) {
+                    log.info("Updating configs for {} with side {}", instance.config.minecraftDir, instance.config.side);
+                    new ConfigUpdater(instance.config.minecraftDir.toFile(), assets.getConfigTag()).run();
+                }
+                return;
+            }
+
             val localAssets = cacheDir.resolve("local-assets.txt");
 
             val modCacheDir = cacheDir.resolve("mods");
@@ -47,13 +56,21 @@ public class Main {
             for (val instance : options.instances) {
                 log.info("Updating {} with side {}", instance.config.minecraftDir, instance.config.side);
                 updater.updateModpackMods(assets, modCacheDir, modExclusions, instance.config);
+                if (options.updateConfigs) {
+                    new ConfigUpdater(instance.config.minecraftDir.toFile(), assets.getConfigTag()).run();
+                }
             }
-
         } catch (CommandLine.ParameterException e) {
+            log.fatal("Parsing fatal: {}", e.getMessage());
             CommandLine.usage(options, System.out);
             System.exit(2);
         } catch (Exception e) {
             log.fatal("Fataled", e);
+            System.out.println("Closing in 10 seconds");
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException ignored) {
+            }
             System.exit(1);
         }
     }
@@ -68,7 +85,7 @@ public class Main {
             cacheDir = Path.of(System.getenv("HOME"), "Library", "Caches");
         } else {
             String cache = System.getenv("XDG_CACHE_HOME");
-            if (cache != null){
+            if (cache != null) {
                 cacheDir = Path.of(cache);
             } else {
                 cacheDir = Path.of(System.getenv("HOME"), ".cache");
@@ -90,9 +107,15 @@ public class Main {
 
 
     @ToString
-    static class Options {
+    public static class Options {
         @CommandLine.Option(names = {"-l", "--latest"}, description = "Use the latest version of GTNH org mods instead of the latest nightly.")
         private boolean useLatest = false;
+
+        @CommandLine.Option(names = {"-C", "--configs-only"}, description = "Only update configs")
+        private boolean configsOnly = false;
+
+        @CommandLine.Option(names = {"-c", "--configs"}, description = "Update configs in addition to mods")
+        private boolean updateConfigs = false;
 
         @CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
         List<Instance> instances;

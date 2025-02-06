@@ -1,7 +1,5 @@
 package GTNHNightlyUpdater.Models;
 
-import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
-
 import java.util.Date;
 import java.util.List;
 
@@ -16,6 +14,7 @@ public class MavenSearch {
     ) {
     }
 
-    public record Maven2(String version, String artifactId){}
+    public record Maven2(String version, String artifactId) {
+    }
 }
 
