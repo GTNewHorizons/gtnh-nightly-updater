@@ -3,7 +3,7 @@
 A tool for updating the GTNH modpack to the latest nightly version via the GTNH maven.
 
 ### Requirements
-Java: Version 21 or later.
+Java: Version 21 or later.  
 Git (optional for config updates)
 
 
