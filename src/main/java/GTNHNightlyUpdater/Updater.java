@@ -37,8 +37,8 @@ public class Updater {
             val split = line.split("\\|");
             val modName = split[0].trim();
             val side = split.length > 1 ? split[1].trim() : "BOTH";
-            Assets.Mod mod = new Assets.Mod(modName, side, null, "", new ArrayList<>());
-            assets.mods().add(mod);
+            Assets.Mod mod = new Assets.Mod(modName, side, new ArrayList<>());
+            assets.getMods().add(mod);
         }
     }
 
@@ -47,88 +47,88 @@ public class Updater {
         val packMods = this.gatherExistingMods(minecraftModsDir);
         log.info("Updating modpack jars");
 
-        for (val mod : assets.mods()) {
-            if (mod.versions().isEmpty()) {
+        for (val mod : assets.getMods()) {
+            if (mod.getVersions() == null || mod.getVersions().isEmpty()) {
                 continue;
             }
-            if (mod.side() != null && mod.side().equals("NONE")) {
-                for (val version : mod.versions()) {
-                    if (packMods.containsKey(version.filename().toLowerCase())) {
-                        log.info("\tDeleting mod with side of NONE: {} - {}", mod.name(), version.filename());
-                        Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
-                        packMods.remove(version.filename().toLowerCase());
+            if (mod.getSide() != null && mod.getSide().equals("NONE")) {
+                for (val version : mod.getVersions()) {
+                    if (packMods.containsKey(version.getFilename().toLowerCase())) {
+                        log.info("\tDeleting mod with side of NONE: {} - {}", mod.getName(), version.getFilename());
+                        Files.deleteIfExists(packMods.get(version.getFilename().toLowerCase()));
+                        packMods.remove(version.getFilename().toLowerCase());
                     }
                 }
                 continue;
             }
             // side being null == BOTH
-            if (mod.side() != null && !(mod.side().equalsIgnoreCase(String.valueOf(instanceConfig.side)) || mod.side().equalsIgnoreCase("BOTH"))) {
+            if (mod.getSide() != null && !(mod.getSide().equalsIgnoreCase(String.valueOf(instanceConfig.side)) || mod.getSide().equalsIgnoreCase("BOTH"))) {
                 continue;
             }
 
-            if (modExclusions.contains(mod.name())) {
-                for (val version : mod.versions()) {
-                    if (packMods.containsKey(version.filename().toLowerCase())) {
-                        log.info("\tDeleting excluded mod: {} - {}", mod.name(), version.filename());
-                        Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
-                        packMods.remove(version.filename().toLowerCase());
+            if (modExclusions.contains(mod.getName())) {
+                for (val version : mod.getVersions()) {
+                    if (packMods.containsKey(version.getFilename().toLowerCase())) {
+                        log.info("\tDeleting excluded mod: {} - {}", mod.getName(), version.getFilename());
+                        Files.deleteIfExists(packMods.get(version.getFilename().toLowerCase()));
+                        packMods.remove(version.getFilename().toLowerCase());
                         break;
-                    } else if (version.mavenFilename() != null && packMods.containsKey(version.mavenFilename().toLowerCase())) {
-                        log.info("\tDeleting excluded mod: {} - {}", mod.name(), version.mavenFilename());
-                        Files.deleteIfExists(packMods.get(version.mavenFilename().toLowerCase()));
-                        packMods.remove(version.mavenFilename().toLowerCase());
+                    } else if (version.getMavenFilename() != null && packMods.containsKey(version.getMavenFilename().toLowerCase())) {
+                        log.info("\tDeleting excluded mod: {} - {}", mod.getName(), version.getMavenFilename());
+                        Files.deleteIfExists(packMods.get(version.getMavenFilename().toLowerCase()));
+                        packMods.remove(version.getMavenFilename().toLowerCase());
                         break;
                     }
                 }
-                log.info("\tSkipping {} due to exclusion", mod.name());
+                log.info("\tSkipping {} due to exclusion", mod.getName());
                 continue;
             }
 
             Assets.Version modVersionToUse = this.useLatest
-                    ? mod.versions().getLast()
-                    : mod.versions().stream()
-                    .filter(v -> v.version().equals(mod.latestVersion()))
+                    ? mod.getVersions().getLast()
+                    : mod.getVersions().stream()
+                    .filter(v -> v.getVersion().equals(mod.getLatestVersion()))
                     .findFirst()
                     .orElse(null);
 
             if (modVersionToUse == null) {
-                log.warn("Unable to determine mod version for {}", mod.name());
+                log.warn("Unable to determine mod version for {}", mod.getName());
                 continue;
             }
 
-            if (packMods.containsKey(modVersionToUse.filename().toLowerCase())) {
+            if (packMods.containsKey(modVersionToUse.getFilename().toLowerCase())) {
                 continue;
             }
-            if (modVersionToUse.mavenFilename() != null && packMods.containsKey(modVersionToUse.mavenFilename().toLowerCase())) {
+            if (modVersionToUse.getMavenFilename() != null && packMods.containsKey(modVersionToUse.getMavenFilename().toLowerCase())) {
                 continue;
             }
 
-            String newModFileName = modVersionToUse.filename();
+            String newModFileName = modVersionToUse.getFilename();
 
             String oldFileName = null;
             // check for old nightly version
-            for (val version : mod.versions()) {
-                if (packMods.containsKey(version.filename().toLowerCase())) {
-                    Files.deleteIfExists(packMods.get(version.filename().toLowerCase()));
-                    packMods.remove(version.filename().toLowerCase());
-                    oldFileName = version.filename();
+            for (val version : mod.getVersions()) {
+                if (packMods.containsKey(version.getFilename().toLowerCase())) {
+                    Files.deleteIfExists(packMods.get(version.getFilename().toLowerCase()));
+                    packMods.remove(version.getFilename().toLowerCase());
+                    oldFileName = version.getFilename();
                     break;
-                } else if (version.mavenFilename() != null && packMods.containsKey(version.mavenFilename().toLowerCase())) {
-                    Files.deleteIfExists(packMods.get(version.mavenFilename().toLowerCase()));
-                    packMods.remove(version.mavenFilename().toLowerCase());
-                    oldFileName = version.mavenFilename();
+                } else if (version.getMavenFilename() != null && packMods.containsKey(version.getMavenFilename().toLowerCase())) {
+                    Files.deleteIfExists(packMods.get(version.getMavenFilename().toLowerCase()));
+                    packMods.remove(version.getMavenFilename().toLowerCase());
+                    oldFileName = version.getMavenFilename();
                     break;
                 }
             }
 
-            if (packMods.containsKey(modVersionToUse.filename().toLowerCase())) {
+            if (packMods.containsKey(modVersionToUse.getFilename().toLowerCase())) {
                 continue;
             }
 
             if (oldFileName != null) {
-                log.info("\tUpgrading {} - {} -> {}", mod.name(), oldFileName, newModFileName);
+                log.info("\tUpgrading {} - {} -> {}", mod.getName(), oldFileName, newModFileName);
             } else {
-                log.info("\tNew Mod {} - {}", mod.name(), newModFileName);
+                log.info("\tNew Mod {} - {}", mod.getName(), newModFileName);
             }
 
             if (Files.notExists(modCacheDir.resolve(newModFileName))) {
@@ -148,17 +148,17 @@ public class Updater {
         log.info("Getting mod versions from maven");
         @Cleanup HttpClient client = HttpClient.newHttpClient();
 
-        for (val mod : asset.mods()) {
+        for (val mod : asset.getMods()) {
             // null source = our maven
-            if (mod.source() != null || ((mod.side() != null && mod.side().equals("NONE")))) {
+            if (mod.getSource() != null || ((mod.getSide() != null && mod.getSide().equals("NONE")))) {
                 continue;
             }
 
-            log.info("\t{}", mod.name());
+            log.info("\t{}", mod.getName());
 
             String url = String.format(
                     "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets?&sort=version&repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier",
-                    mod.name()
+                    mod.getName()
             );
             var req = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -168,7 +168,7 @@ public class Updater {
 
             val mavenIndex = JsonParser.parse(resp.body(), MavenSearch.Index.class);
             if (mavenIndex == null) {
-                log.warn("Unable to parse maven response for {}", mod.name());
+                log.warn("Unable to parse maven response for {}", mod.getName());
                 continue;
             }
             var continuationToken = mavenIndex.continuationToken();
@@ -185,7 +185,7 @@ public class Updater {
 
             val versions = mavenIndex.items();
             if (versions.size() == 0) {
-                log.warn("Unable to parse maven versions for {}", mod.name());
+                log.warn("Unable to parse maven versions for {}", mod.getName());
                 continue;
             }
 
@@ -196,33 +196,33 @@ public class Updater {
                 String mavenFilename = FilenameUtils.getName(version.downloadUrl());
 
                 // Check if the version already exists
-                val existingVersion = mod.versions().stream()
-                        .filter(v -> v.version().equals(versionString))
+                val existingVersion = mod.getVersions().stream()
+                        .filter(v -> v.getVersion().equals(versionString))
                         .findFirst();
 
                 if (existingVersion.isPresent()) {
-                    existingVersion.get().mavenFilename(mavenFilename);
-                    existingVersion.get().downloadUrl(version.downloadUrl());
+                    existingVersion.get().setMavenFilename(mavenFilename);
+                    existingVersion.get().setDownloadUrl(version.downloadUrl());
                 } else {
                     Assets.Version newVersion = new Assets.Version(
                             mavenFilename,
                             versionString.endsWith("-pre"),
-                            versionString,
-                            version.downloadUrl()
+                            versionString
                     );
-                    newVersion.mavenFilename(mavenFilename);
-                    mod.versions().add(newVersion);
+                    newVersion.setDownloadUrl(version.downloadUrl());
+                    newVersion.setMavenFilename(mavenFilename);
+                    mod.getVersions().add(newVersion);
                 }
             }
 
             // edge cases for mods
             // reason: 0.55 -> 0.6+
-            if (mod.name().equals("BlockLimiter") || mod.name().equals("oauth")) {
-                mod.versions().removeIf(v -> v.filename().contains("-1.7.10-"));
+            if (mod.getName().equals("BlockLimiter") || mod.getName().equals("oauth")) {
+                mod.getVersions().removeIf(v -> v.getFilename().contains("-1.7.10-"));
             }
 
-            if (mod.versions() != null) {
-                mod.versions().sort(Comparator.comparing(v -> new DefaultArtifactVersion(v.version())));
+            if (mod.getVersions() != null) {
+                mod.getVersions().sort(Comparator.comparing(v -> new DefaultArtifactVersion(v.getVersion())));
             }
         }
     }
@@ -231,38 +231,38 @@ public class Updater {
     void cacheMods(Assets.Asset asset, Path modCacheDir) throws IOException, InterruptedException {
         log.info("Caching nightly mods");
         @Cleanup HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
-        for (val mod : asset.mods()) {
-            if ((mod.side() != null && mod.side().equals("NONE")) || mod.versions().isEmpty()) {
+        for (val mod : asset.getMods()) {
+            if ((mod.getSide() != null && mod.getSide().equals("NONE")) || mod.getVersions().isEmpty()) {
                 continue;
             }
 
             Assets.Version modVersionToUse;
-            if (this.useLatest && mod.source() == null) {
-                modVersionToUse = mod.versions().getLast();
+            if (this.useLatest && mod.getSource() == null) {
+                modVersionToUse = mod.getVersions().getLast();
             } else {
-                val nightlyMod = mod.versions().stream().filter(v -> v.version().equals(mod.latestVersion())).findFirst();
+                val nightlyMod = mod.getVersions().stream().filter(v -> v.getVersion().equals(mod.getLatestVersion())).findFirst();
                 if (nightlyMod.isPresent()) {
                     modVersionToUse = nightlyMod.get();
                 } else {
-                    log.warn("Unable to find nightly version of {}: {}", mod.name(), mod.latestVersion());
+                    log.warn("Unable to find nightly version of {}: {}", mod.getName(), mod.getLatestVersion());
                     continue;
                 }
             }
 
-            if (Files.exists(modCacheDir.resolve(modVersionToUse.filename())) || (modVersionToUse.mavenFilename() != null && Files.exists(modCacheDir.resolve(modVersionToUse.mavenFilename())))) {
+            if (Files.exists(modCacheDir.resolve(modVersionToUse.getFilename())) || (modVersionToUse.getMavenFilename() != null && Files.exists(modCacheDir.resolve(modVersionToUse.getMavenFilename())))) {
                 continue;
             }
 
-            Path targetPath = modCacheDir.resolve(modVersionToUse.filename());
+            Path targetPath = modCacheDir.resolve(modVersionToUse.getFilename());
 
             String downloadURL;
-            if (this.useLatest || mod.source() != null) {
-                downloadURL = modVersionToUse.downloadUrl();
+            if (this.useLatest || mod.getSource() != null) {
+                downloadURL = modVersionToUse.getDownloadUrl();
             } else {
                 downloadURL = String.format(
                         "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier&version=%s",
-                        mod.name(),
-                        modVersionToUse.version()
+                        mod.getName(),
+                        modVersionToUse.getVersion()
                 );
             }
 
@@ -271,7 +271,7 @@ public class Updater {
                 continue;
             }
 
-            log.info("\t{}", mod.name());
+            log.info("\t{}", mod.getName());
             val request = HttpRequest.newBuilder()
                     .uri(URI.create(downloadURL))
                     .GET()
@@ -311,22 +311,24 @@ public class Updater {
         }
         val map = (LinkedTreeMap<String, Object>) JsonParser.parse(response.body(), Map.class);
 
+        asset.setConfigTag(map.get("config").toString());
+
         // set all sides to none; manifest will set the side
-        for (val mod : asset.mods()) {
-            mod.side("NONE");
+        for (val mod : asset.getMods()) {
+            mod.setSide("NONE");
         }
 
         for (val mod : ((LinkedTreeMap<String, LinkedTreeMap<String, String>>) map.get("github_mods")).entrySet()) {
-            asset.mods().stream().filter(m -> m.name().equals(mod.getKey())).findFirst().ifPresent(m -> {
-                m.side(mod.getValue().get("side"));
-                m.latestVersion(mod.getValue().get("version"));
+            asset.getMods().stream().filter(m -> m.getName().equals(mod.getKey())).findFirst().ifPresent(m -> {
+                m.setSide(mod.getValue().get("side"));
+                m.setLatestVersion(mod.getValue().get("version"));
             });
         }
 
         for (val mod : ((LinkedTreeMap<String, LinkedTreeMap<String, String>>) map.get("external_mods")).entrySet()) {
-            asset.mods().stream().filter(m -> m.name().equals(mod.getKey())).findFirst().ifPresent(m -> {
-                m.side(mod.getValue().get("side"));
-                m.latestVersion(mod.getValue().get("version"));
+            asset.getMods().stream().filter(m -> m.getName().equals(mod.getKey())).findFirst().ifPresent(m -> {
+                m.setSide(mod.getValue().get("side"));
+                m.setLatestVersion(mod.getValue().get("version"));
             });
         }
 
