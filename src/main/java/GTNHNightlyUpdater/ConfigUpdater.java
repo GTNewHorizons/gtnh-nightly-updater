@@ -32,13 +32,13 @@ public class ConfigUpdater {
 
         // Init repo if needed
         if (initializeGitRepository(packConfigsDir)) {
-            System.out.printf("WARNING: In order to have proper tracking of configs, your configs will be refreshed with the latest from [%s [%s]]%n", CONFIG_REPO, configTag);
+            System.out.printf("WARNING: In order to have proper tracking of configs, your configs will be replaced with the latest from [%s [%s]]%n", CONFIG_REPO, configTag);
             Scanner scanner = new Scanner(System.in);
             while (true) {
                 System.out.println("Press 'y' to confirm");
                 // dev note: there is a bug in intellij where the console returns without user input
-                // String input = scanner.nextLine();
-                String input = "y";
+                String input = scanner.nextLine();
+                // String input = "y";
 
                 if (input.equalsIgnoreCase("y")) {
                     break;
