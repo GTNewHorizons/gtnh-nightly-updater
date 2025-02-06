@@ -4,6 +4,7 @@ A tool for updating the GTNH modpack to the latest nightly version via the GTNH 
 
 ### Requirements
 Java: Version 21 or later.
+Git (optional for config updates)
 
 
 ### Usage
@@ -11,6 +12,8 @@ Java: Version 21 or later.
 |Option| Description                                                               |  
 |---|---------------------------------------------------------------------------|
 |-l, --latest| Optional. Use the latest release instead of the specific nightly version. |  
+|-c, --configs| Optional. Update configs as well as mods. |
+|-C, --only-configs| Optional. Only update configs |
 |--add| Required. Can be repeated. Adds an instance to updater using the below flags                    |
 |-m, --minecraft| Required. Path to the target Minecraft directory.                         
 | -s, --side| Required. Specify the side (CLIENT or SERVER).                            |
@@ -18,7 +21,7 @@ Java: Version 21 or later.
 
 #### Example Command
 
-`java -jar gtnh-nightly-updater.jar --latest --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/"`
+`java -jar gtnh-nightly-updater.jar --latest -c --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/"`
 
 ### Caching
 The cache directory can be found at:  
