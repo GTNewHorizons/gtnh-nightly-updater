@@ -56,7 +56,9 @@ public class Main {
             for (val instance : options.instances) {
                 log.info("Updating {} with side {}", instance.config.minecraftDir, instance.config.side);
                 updater.updateModpackMods(assets, modCacheDir, modExclusions, instance.config);
-                new ConfigUpdater(instance.config.minecraftDir.toFile(), assets.getConfigTag()).run();
+                if (options.updateConfigs) {
+                    new ConfigUpdater(instance.config.minecraftDir.toFile(), assets.getConfigTag()).run();
+                }
             }
         } catch (CommandLine.ParameterException e) {
             log.fatal("Parsing fatal: {}", e.getMessage());
