@@ -6,6 +6,28 @@ A tool for updating the GTNH modpack to the latest nightly version via the GTNH 
 Java: Version 21 or later.  
 Git (optional for config updates)
 
+### Configs
+#### WARNING
+**The first time you run the configs update, you will be prompted saying that the instance's configs will be replaced with the latest copy for the nightly.**  
+
+The first time the configs are updated the following things occur:
+* Modpack config repo is cloned to `.minecraft/.updater_pack_configs`
+* A backup of the `.minecraft/config` folder will be copied to `.minecraft/config_backup_updater` (this only happens the first time)
+* `.minecraft/config` will be deleted
+* `.minecraft/.updater_pack_configs/configs` will copied to `.minecraft/config`
+
+After that the update process will be:
+* Delete `.minecraft/.updater_pack_configs/configs`
+* Copy `.minecraft/config` to `.minecraft/.updater_pack_configs/configs`
+* `git add .`
+* `git commit -m "<auto_message>"`
+* `git fetch`
+* `git merge -x theirs origin/<nightly_config>`
+* `.minecraft/config` will be deleted
+* `.minecraft/.updater_pack_configs/configs` will copied to `.minecraft/config`
+
+**If there are any merge conflicts, it will stop and notify the user. Those will have to done by hand**
+
 
 ### Usage
 #### Command-Line Options
