@@ -123,7 +123,7 @@ public class ConfigUpdater {
         runCommand("git", "-C", packConfigsDir.getAbsolutePath(), "fetch");
         try {
             // Merge remote changes into local branch
-            runCommand("git", "-C", packConfigsDir.getAbsolutePath(), "merge", "-X", "theirs", configTag != null ? configTag : "origin/master");
+            runCommand("git", "-C", packConfigsDir.getAbsolutePath(), "merge", "--no-stat", "--no-edit", "-X", "theirs", configTag != null ? configTag : "origin/master");
         } catch (RuntimeException e) {
             throw new RuntimeException(String.format("There are conflicts that need to be resolved manually. Please check the repo at [%s]", packConfigsDir.getAbsolutePath()));
         }
