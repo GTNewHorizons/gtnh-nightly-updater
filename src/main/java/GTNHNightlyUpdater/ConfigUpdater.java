@@ -120,7 +120,11 @@ public class ConfigUpdater {
 
     private void mergeChanges(File packConfigsDir) throws IOException {
         log.info("Merging changes");
-        runCommand("git", "-C", packConfigsDir.getAbsolutePath(), "fetch");
+        if (configTag != null) {
+            runCommand("git", "-C", packConfigsDir.getAbsolutePath(), "fetch", "--no-tags", "origin", "tag", configTag);
+        } else {
+            runCommand("git", "-C", packConfigsDir.getAbsolutePath(), "fetch", "--no-tags", "origin", "master");
+        }
         try {
             // Merge remote changes into local branch
             runCommand("git", "-C", packConfigsDir.getAbsolutePath(), "merge", "--no-stat", "--no-edit", "-X", "theirs", configTag != null ? configTag : "origin/master");
