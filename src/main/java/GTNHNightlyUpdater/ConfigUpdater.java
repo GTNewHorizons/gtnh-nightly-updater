@@ -73,7 +73,9 @@ public class ConfigUpdater {
 
     private boolean initializeGitRepository(File configDirectory) throws IOException {
         if (!new File(configDirectory, ".git").exists()) {
-            runCommand("git", "clone", "--depth", "1", "--branch", configTag != null ? configTag : "master", CONFIG_REPO, configDirectory.getAbsolutePath());
+            runCommand("git", "clone", "--no-tags", "--single-branch", "--branch", configTag != null ? configTag : "master", CONFIG_REPO, configDirectory.getAbsolutePath());
+            runCommand("git", "-C", configDirectory.getAbsolutePath(), "config", "--local", "user.name", "User");
+            runCommand("git", "-C", configDirectory.getAbsolutePath(), "config", "--local", "user.email", "fakeemail@example.com");
             runCommand("git", "-C", configDirectory.getAbsolutePath(), "checkout", "-b", "local");
             File dest = new File(minecraftDir, "config_backup_updater");
             deleteExistingFiles(dest);
