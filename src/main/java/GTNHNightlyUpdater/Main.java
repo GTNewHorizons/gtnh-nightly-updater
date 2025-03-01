@@ -52,7 +52,7 @@ public class Main {
                 }
                 updater.updateModsFromMaven(assets);
             }
-            updater.cacheMods(assets, modCacheDir);
+            updater.cacheMods(assets, modExclusions, modCacheDir);
             for (val instance : options.instances) {
                 log.info("Updating {} with side {}", instance.config.minecraftDir, instance.config.side);
                 updater.updateModpackMods(assets, modCacheDir, modExclusions, instance.config);
