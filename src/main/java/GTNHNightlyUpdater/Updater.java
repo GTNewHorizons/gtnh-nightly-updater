@@ -157,7 +157,7 @@ public class Updater {
             log.info("\t{}", mod.getName());
 
             String url = String.format(
-                    "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets?&sort=version&repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier",
+                    "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets?&sort=version&repository=public&name=%s&maven.extension=jar&maven.classifier",
                     mod.getName()
             );
             var req = HttpRequest.newBuilder()
