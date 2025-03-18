@@ -260,7 +260,7 @@ public class Updater {
                 downloadURL = modVersionToUse.getDownloadUrl();
             } else {
                 downloadURL = String.format(
-                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier&version=%s",
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier&version=%s",
                         mod.getName(),
                         modVersionToUse.getVersion()
                 );
