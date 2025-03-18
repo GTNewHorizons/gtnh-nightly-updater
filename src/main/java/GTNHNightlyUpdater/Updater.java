@@ -105,6 +105,11 @@ public class Updater {
 
             String newModFileName = modVersionToUse.getFilename();
 
+            if (Files.notExists(modCacheDir.resolve(newModFileName))) {
+                log.warn("Skipping {} - File not found: '{}'", mod.getName(), modCacheDir.resolve(newModFileName));
+                continue;
+            }
+
             String oldFileName = null;
             // check for old nightly version
             for (val version : mod.getVersions()) {
@@ -129,10 +134,6 @@ public class Updater {
                 log.info("\tUpgrading {} - {} -> {}", mod.getName(), oldFileName, newModFileName);
             } else {
                 log.info("\tNew Mod {} - {}", mod.getName(), newModFileName);
-            }
-
-            if (Files.notExists(modCacheDir.resolve(newModFileName))) {
-                throw new RuntimeException(String.format("Unable to find '%s'", modCacheDir.resolve(newModFileName)));
             }
 
             if (instanceConfig.isUseSymlinks()) {
@@ -228,11 +229,15 @@ public class Updater {
     }
 
 
-    void cacheMods(Assets.Asset asset, Path modCacheDir) throws IOException, InterruptedException {
+    void cacheMods(Assets.Asset asset, Set<String> modExclusions, Path modCacheDir) throws IOException, InterruptedException {
         log.info("Caching nightly mods");
         @Cleanup HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
         for (val mod : asset.getMods()) {
             if ((mod.getSide() != null && mod.getSide().equals("NONE")) || mod.getVersions().isEmpty()) {
+                continue;
+            }
+
+            if (modExclusions.contains(mod.getName())) {
                 continue;
             }
 
@@ -278,7 +283,8 @@ public class Updater {
                     .build();
             val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
             if (!(response.statusCode() == 200 || response.statusCode() == 302)) {
-                throw new IOException(String.format("Failed to fetch jar: %s - %d", downloadURL, response.statusCode()));
+                log.warn("Failed to fetch jar: {} - {}", downloadURL, response.statusCode());
+                continue;
             }
             Files.write(targetPath, response.body());
         }
