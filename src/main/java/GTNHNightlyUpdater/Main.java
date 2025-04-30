@@ -108,10 +108,10 @@ public class Main {
 
     @ToString
     public static class Options {
-        @CommandLine.Option(names = {"-l", "--latest"}, description = "Use the latest version of GTNH org mods instead of the latest nightly.")
+        @CommandLine.Option(names = {"--bypass-latest-nightly"}, description = "Use the latest version of GTNH org mods instead of the latest nightly. (DANGER, only use if you know what you are doing)")
         private boolean useLatest = false;
 
-        @CommandLine.Option(names = {"-C", "--configs-only"}, description = "Only update configs")
+        @CommandLine.Option(names = {"-C", "--configs-only"}, description = "Only update configs (version pulled is based off the nightly manifest)")
         private boolean configsOnly = false;
 
         @CommandLine.Option(names = {"-c", "--configs"}, description = "Update configs in addition to mods")
