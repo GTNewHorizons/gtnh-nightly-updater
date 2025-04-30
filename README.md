@@ -33,8 +33,8 @@ After that the update process will be:
 #### Command-Line Options
 |Option| Description                                                               |  
 |---|---------------------------------------------------------------------------|
-|-l, --latest| Optional. Use the latest release instead of the specific nightly version. |  
-|-c, --configs| Optional. Update configs as well as mods. |
+|--bypass-latest-nightly| Optional. Use the latest version of GTNH org mods instead of the latest nightly. (DANGER, only use if you know what you are doing) |  
+|-c, --configs| Optional. Only update configs (version pulled is based off the nightly manifest) |
 |-C, --only-configs| Optional. Only update configs |
 |--add| Required. Can be repeated. Adds an instance to updater using the below flags                    |
 |-m, --minecraft| Required. Path to the target Minecraft directory.                         
@@ -43,7 +43,7 @@ After that the update process will be:
 
 #### Example Command
 
-`java -jar gtnh-nightly-updater.jar --latest -c --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/"`
+`java -jar gtnh-nightly-updater.jar -c --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH_Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/"`
 
 ### Caching
 The cache directory can be found at:  
