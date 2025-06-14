@@ -33,7 +33,7 @@ After that the update process will be:
 #### Command-Line Options
 |Option| Description                                                               |  
 |---|---------------------------------------------------------------------------|
-|-M, --target-manifer| Required. Specify which release to update to the latest version of. (DAILY or EXPERIMENTAL) |
+|-M, --target-manifest| Required. Specify which release to update to the latest version of. (DAILY or EXPERIMENTAL) |
 |-c, --configs| Optional. Only update configs (version pulled is based off the nightly manifest) |
 |-C, --only-configs| Optional. Only update configs |
 |--add| Required. Can be repeated. Adds an instance to updater using the below flags                    |
