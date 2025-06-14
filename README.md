@@ -1,6 +1,6 @@
 
 ## GTNH Nightly Updater
-A tool for updating the GTNH modpack to the latest nightly version via the GTNH maven.
+A tool for updating the GTNH modpack to the latest experimental/daily version via the GTNH maven.
 
 ### Requirements
 Java: Version 21 or later.  
@@ -33,7 +33,7 @@ After that the update process will be:
 #### Command-Line Options
 |Option| Description                                                               |  
 |---|---------------------------------------------------------------------------|
-|--bypass-latest-nightly| Optional. Use the latest version of GTNH org mods instead of the latest nightly. (DANGER, only use if you know what you are doing) |  
+|-M, --target-manifer| Required. Specify which release to update to the latest version of. (DAILY or EXPERIMENTAL) |
 |-c, --configs| Optional. Only update configs (version pulled is based off the nightly manifest) |
 |-C, --only-configs| Optional. Only update configs |
 |--add| Required. Can be repeated. Adds an instance to updater using the below flags                    |
@@ -43,7 +43,7 @@ After that the update process will be:
 
 #### Example Command
 
-`java -jar gtnh-nightly-updater.jar -c --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH_Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/"`
+`java -jar gtnh-nightly-updater.jar -M daily -c --add -s CLIENT -m "/mnt/games/Minecraft/Instances/GTNH_Nightly/.minecraft/" --add -s SERVER -m "/mnt/docker/appdata/minecraft/gtnh/"`
 
 ### Caching
 The cache directory can be found at:  

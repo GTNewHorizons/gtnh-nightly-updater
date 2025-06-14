@@ -57,12 +57,12 @@ application {
     tasks {
         // command line args example in a dev env
 //        run.get().args = listOf(
-//                "-l",
+//                "-M", "DAILY",
 //                "--add",
-//                "-m", "/mnt/games/Minecraft/Instances/GTNH Nightly/.minecraft/",
+//                "-m", "/mnt/games/Minecraft/Instances/GTNH_Nightly/.minecraft/",
 //                "-s", "CLIENT",
 //                "--add",
-//                "-m", "/mnt/docker/appdata/minecraft/gtnh/",
+//                "-m", "/mnt/apps/minenix/appdata/gtnh/",
 //                "-s", "server"
 //        )
     }

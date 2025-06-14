@@ -31,7 +31,7 @@ public class Assets {
 
     @Data
     public static final class Version {
-        private final String filename;
+        private String filename;
         private final boolean prerelease;
         @SerializedName("version_tag")
         private final String version;
