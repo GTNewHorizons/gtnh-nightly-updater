@@ -22,14 +22,14 @@ public class Main {
                     .setCaseInsensitiveEnumValuesAllowed(true)
                     .parseArgs(args);
 
-            val updater = new Updater(options.useLatest);
+            val updater = new Updater();
             val cacheDir = getCacheDir().resolve("gtnh-nightly-updater");
             if (Files.notExists(cacheDir)) {
                 Files.createDirectory(cacheDir);
             }
             val modExclusions = getModExclusions(cacheDir);
 
-            val assets = updater.fetchDAXXLAssets();
+            val assets = updater.fetchDAXXLAssets(options.targetManifest);
 
             if (options.configsOnly) {
                 for (val instance : options.instances) {
@@ -45,13 +45,10 @@ public class Main {
             if (Files.notExists(modCacheDir)) {
                 Files.createDirectory(modCacheDir);
             }
-
-            if (options.useLatest) {
-                if (Files.exists(localAssets)) {
-                    updater.addLocalAssets(assets, localAssets);
-                }
-                updater.updateModsFromMaven(assets);
+            if (Files.exists(localAssets)) {
+                updater.addLocalAssets(assets, localAssets);
             }
+
             updater.cacheMods(assets, modExclusions, modCacheDir);
             for (val instance : options.instances) {
                 log.info("Updating {} with side {}", instance.config.minecraftDir, instance.config.side);
@@ -108,10 +105,16 @@ public class Main {
 
     @ToString
     public static class Options {
-        @CommandLine.Option(names = {"--bypass-latest-nightly"}, description = "Use the latest version of GTNH org mods instead of the latest nightly. (DANGER, only use if you know what you are doing)")
-        private boolean useLatest = false;
 
-        @CommandLine.Option(names = {"-C", "--configs-only"}, description = "Only update configs (version pulled is based off the nightly manifest)")
+        enum TargetManifest {
+            EXPERIMENTAL,
+            DAILY;
+        }
+
+        @CommandLine.Option(names = {"-M", "--target-manifest"}, required = true, description = "Which manifest to use as source of mod versions.; Valid values: ${COMPLETION-CANDIDATES}")
+        private TargetManifest targetManifest;
+
+        @CommandLine.Option(names = {"-C", "--configs-only"}, description = "Only update configs (version pulled is based off the target manifest)")
         private boolean configsOnly = false;
 
         @CommandLine.Option(names = {"-c", "--configs"}, description = "Update configs in addition to mods")
