@@ -95,9 +95,14 @@ public class Updater {
                 continue;
             }
 
-            String newModFileName = modVersionToUse.getFilename();
+            if (modVersionToUse.getCachePath() == null) {
+                log.warn("\tUnable to get cached path for {}", mod.getName());
+                continue;
+            }
 
-            Path modCacheLocation = modCacheDir.resolve(mod.getName()).resolve(newModFileName);
+            String newModFileName = modVersionToUse.getCachePath().getFileName().toString();
+
+            Path modCacheLocation = modVersionToUse.getCachePath();
 
             if (Files.notExists(modCacheLocation)) {
                 log.warn("\tSkipping {} - File not found: '{}'", mod.getName(), modCacheLocation);
@@ -178,7 +183,7 @@ public class Updater {
             }
 
 
-            Path targetPath = modCacheDir.resolve(mod.getName()).resolve(modVersionToUse.getFilename());
+            Path targetPath = modCacheDir.resolve(mod.getName().replaceAll("[<>:\"/\\\\|?*]", "")).resolve(modVersionToUse.getFilename());
             if (Files.notExists(targetPath.getParent())) {
                 Files.createDirectory(targetPath.getParent());
             }
@@ -187,14 +192,15 @@ public class Updater {
                 Files.move(modCacheDir.resolve(modVersionToUse.getFilename()), targetPath);
             }
 
+            modVersionToUse.setCachePath(targetPath);
+
             if (Files.exists(targetPath)) {
                 continue;
             }
 
-
             String downloadURL;
             if (mod.getSource() != null) {
-                downloadURL = modVersionToUse.getDownloadUrl();
+                downloadURL = modVersionToUse.getDownloadUrl().replace("/media.", "/mediafilez.");
             } else {
                 downloadURL = String.format(
                         "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier&version=%s",

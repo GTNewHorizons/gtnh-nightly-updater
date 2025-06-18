@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName;
 import lombok.Data;
 import lombok.NonNull;
 
+import java.nio.file.Path;
 import java.util.List;
 
 public class Assets {
@@ -38,5 +39,6 @@ public class Assets {
         @SerializedName("download_url")
         private String downloadUrl;
         private String mavenFilename;
+        private transient Path cachePath;
     }
 }
