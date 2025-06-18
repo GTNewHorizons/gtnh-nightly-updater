@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NonNull;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Assets {
@@ -40,5 +41,6 @@ public class Assets {
         private String downloadUrl;
         private String mavenFilename;
         private transient Path cachePath;
+        private transient List<Path> extraAssets = new ArrayList<>();
     }
 }
