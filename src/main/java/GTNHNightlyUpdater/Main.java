@@ -22,14 +22,14 @@ public class Main {
                     .setCaseInsensitiveEnumValuesAllowed(true)
                     .parseArgs(args);
 
-            val updater = new Updater();
+            val updater = new Updater(options);
             val cacheDir = getCacheDir().resolve("gtnh-nightly-updater");
             if (Files.notExists(cacheDir)) {
                 Files.createDirectory(cacheDir);
             }
             val modExclusions = getModExclusions(cacheDir);
 
-            val assets = updater.fetchDAXXLAssets(options.targetManifest);
+            val assets = updater.fetchDAXXLAssets();
 
             if (options.configsOnly) {
                 for (val instance : options.instances) {
@@ -112,18 +112,18 @@ public class Main {
         }
 
         @CommandLine.Option(names = {"-M", "--target-manifest"}, required = true, description = "Which manifest to use as source of mod versions.; Valid values: ${COMPLETION-CANDIDATES}")
-        private TargetManifest targetManifest;
+        protected TargetManifest targetManifest;
 
         @CommandLine.Option(names = {"-C", "--configs-only"}, description = "Only update configs (version pulled is based off the target manifest)")
-        private boolean configsOnly = false;
+        protected boolean configsOnly = false;
 
         @CommandLine.Option(names = {"-c", "--configs"}, description = "Update configs in addition to mods")
-        private boolean updateConfigs = false;
+        protected boolean updateConfigs = false;
 
         @CommandLine.ArgGroup(exclusive = false, multiplicity = "1..*")
-        List<Instance> instances;
+        protected List<Instance> instances;
 
-        static class Instance {
+        protected static class Instance {
             @CommandLine.Option(names = "--add", required = true, description = "Used to add instances to be updated; Allows for updating a client and server at the same time.")
             boolean add_instance; // leave this for the option
 

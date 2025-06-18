@@ -6,16 +6,20 @@ import com.google.gson.internal.LinkedTreeMap;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
 import lombok.val;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -25,9 +29,17 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Log4j2(topic = "GTNHNightlyUpdater")
 public class Updater {
+    private final Main.Options options;
+
+    public Updater(Main.Options options) {
+        this.options = options;
+    }
+
     void addLocalAssets(Assets.Asset assets, Path localAssets) throws IOException {
         val lines = Files.readAllLines(localAssets);
         for (val line : lines) {
@@ -69,7 +81,8 @@ public class Updater {
             }
 
             // side being null == BOTH
-            if (mod.getSide() != null && !(mod.getSide().equalsIgnoreCase(String.valueOf(instanceConfig.side)) || mod.getSide().equalsIgnoreCase("BOTH"))) {
+            val modSide = mod.getSide() != null ? mod.getSide().split("_")[0] : "BOTH";
+            if (mod.getSide() != null && !(modSide.equalsIgnoreCase(String.valueOf(instanceConfig.side)) || modSide.equalsIgnoreCase("BOTH"))) {
                 continue;
             }
 
@@ -157,6 +170,79 @@ public class Updater {
                 Files.copy(modCacheLocation, modDest);
             }
             packMods.put(newModFileName, modDest);
+
+            var extraAssets = modVersionToUse.getExtraAssets();
+            if (extraAssets != null && extraAssets.size() > 0) {
+                if (mod.getName().equalsIgnoreCase("lwjgl3ify")) {
+                    Path rootMinecraftDir = instanceConfig.getMinecraftDir();
+
+                    if (instanceConfig.side == Main.Options.Instance.InstanceConfig.Side.SERVER) {
+                        val forgePatches = extraAssets.stream().filter(a -> a.getFileName().toString().endsWith("-forgePatches.jar")).findFirst();
+
+                        if (forgePatches.isPresent()) {
+                            val patchesFile = forgePatches.get();
+                            modDest = rootMinecraftDir.resolve("lwjgl3ify-forgePatches.jar");
+                            if (instanceConfig.isUseSymlinks()) {
+                                Files.createSymbolicLink(modDest, patchesFile);
+                            } else {
+                                Files.copy(patchesFile, modDest, StandardCopyOption.REPLACE_EXISTING);
+                            }
+                        }
+                    } else if (instanceConfig.side == Main.Options.Instance.InstanceConfig.Side.CLIENT) {
+                        val zip = extraAssets.stream().filter(a -> a.getFileName().toString().endsWith("-multimc.zip")).findFirst();
+
+                        if (zip.isPresent()) {
+                            val zipFile = zip.get();
+
+                            // should be up one
+                            extractZip(zipFile, rootMinecraftDir.getParent());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void extractZip(Path zipPath, Path targetDir) throws IOException {
+        // Ensure the target directory exists
+        if (!Files.exists(targetDir)) {
+            Files.createDirectories(targetDir);
+        }
+
+        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipPath))) {
+            ZipEntry entry;
+
+            while ((entry = zis.getNextEntry()) != null) {
+                Path resolvedPath = targetDir.resolve(entry.getName()).normalize();
+
+                // Prevent Zip Slip vulnerability
+                if (!resolvedPath.startsWith(targetDir)) {
+                    throw new IOException("Entry is outside the target dir: " + entry.getName());
+                }
+
+                if (entry.isDirectory()) {
+                    if (Files.exists(resolvedPath)) {
+                        FileUtils.deleteDirectory(resolvedPath.toFile());
+                    }
+                    Files.createDirectories(resolvedPath);
+                } else {
+                    // Ensure parent directories exist
+                    if (!Files.exists(resolvedPath.getParent())) {
+                        Files.createDirectories(resolvedPath.getParent());
+                    }
+
+                    // Overwrite file if it exists
+                    try (OutputStream os = Files.newOutputStream(resolvedPath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+                        byte[] buffer = new byte[4096];
+                        int bytesRead;
+                        while ((bytesRead = zis.read(buffer)) != -1) {
+                            os.write(buffer, 0, bytesRead);
+                        }
+                    }
+                }
+
+                zis.closeEntry();
+            }
         }
     }
 
@@ -195,8 +281,11 @@ public class Updater {
             modVersionToUse.setCachePath(targetPath);
 
             if (Files.exists(targetPath)) {
+                getExtraAssets(mod, modVersionToUse, client, targetPath);
                 continue;
             }
+
+            log.info("\t{}", mod.getName());
 
             String downloadURL;
             if (mod.getSource() != null) {
@@ -209,19 +298,65 @@ public class Updater {
                 );
             }
 
-            log.info("\t{}", mod.getName());
-            val request = HttpRequest.newBuilder()
-                    .uri(URI.create(downloadURL))
-                    .GET()
-                    .build();
-            val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            if (!(response.statusCode() == 200 || response.statusCode() == 302)) {
-                log.warn("\tFailed to fetch jar: {} - {}", downloadURL, response.statusCode());
-                continue;
-            }
-            Files.write(targetPath, response.body());
+            var downloadBytes = downloadFile(downloadURL, client);
+            if (downloadBytes == null) continue;
+
+            Files.write(targetPath, downloadBytes);
+
+            getExtraAssets(mod, modVersionToUse, client, targetPath);
         }
 
+    }
+
+    private static void getExtraAssets(Assets.Mod mod, Assets.Version modVersionToUse, HttpClient client, Path targetPath) throws IOException, InterruptedException {
+        String downloadURL;
+        byte[] downloadBytes;
+        if (mod.getName().equalsIgnoreCase("lwjgl3ify")) {
+            if (modVersionToUse.getExtraAssets() == null) {
+                modVersionToUse.setExtraAssets(new ArrayList<>());
+            }
+
+            targetPath = targetPath.resolveSibling(String.format("%s-%s-multimc.zip", mod.getName(), modVersionToUse.getVersion()));
+            if (!Files.exists(targetPath)) {
+                downloadURL = String.format(
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=zip&maven.classifier=multimc&version=%s",
+                        mod.getName(),
+                        modVersionToUse.getVersion()
+                );
+
+                downloadBytes = downloadFile(downloadURL, client);
+                if (downloadBytes == null) return;
+                Files.write(targetPath, downloadBytes);
+            }
+            modVersionToUse.getExtraAssets().add(targetPath);
+
+            targetPath = targetPath.resolveSibling(String.format("%s-%s-forgePatches.jar", mod.getName(), modVersionToUse.getVersion()));
+            if (!Files.exists(targetPath)) {
+                downloadURL = String.format(
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier=forgePatches&version=%s",
+                        mod.getName(),
+                        modVersionToUse.getVersion()
+                );
+
+                downloadBytes = downloadFile(downloadURL, client);
+                if (downloadBytes == null) return;
+                Files.write(targetPath, downloadBytes);
+            }
+            modVersionToUse.getExtraAssets().add(targetPath);
+        }
+    }
+
+    private static byte[] downloadFile(String downloadURL, HttpClient client) throws IOException, InterruptedException {
+        val request = HttpRequest.newBuilder()
+                .uri(URI.create(downloadURL))
+                .GET()
+                .build();
+        val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        if (!(response.statusCode() == 200 || response.statusCode() == 302)) {
+            log.warn("\tFailed to fetch jar: {} - {}", downloadURL, response.statusCode());
+            return null;
+        }
+        return response.body();
     }
 
     void updateModFromMaven(Assets.Mod mod) throws IOException, InterruptedException {
@@ -305,7 +440,7 @@ public class Updater {
         }
     }
 
-    Assets.Asset fetchDAXXLAssets(Main.Options.TargetManifest targetManifest) throws IOException, InterruptedException {
+    Assets.Asset fetchDAXXLAssets() throws IOException, InterruptedException {
         log.info("Fetching latest gtnh-assets.json");
 
         @Cleanup HttpClient client = HttpClient.newHttpClient();
@@ -322,7 +457,7 @@ public class Updater {
         val asset = JsonParser.parse(response.body(), Assets.Asset.class);
 
         request = HttpRequest.newBuilder()
-                .uri(URI.create(String.format("https://raw.githubusercontent.com/GTNewHorizons/DreamAssemblerXXL/refs/heads/master/releases/manifests/%s.json", targetManifest.name().toLowerCase())))
+                .uri(URI.create(String.format("https://raw.githubusercontent.com/GTNewHorizons/DreamAssemblerXXL/refs/heads/master/releases/manifests/%s.json", options.targetManifest.name().toLowerCase())))
                 .GET()
                 .build();
         response = client.send(request, HttpResponse.BodyHandlers.ofString());
