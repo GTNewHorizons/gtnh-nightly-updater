@@ -292,14 +292,31 @@ public class Updater {
                 downloadURL = modVersionToUse.getDownloadUrl().replace("/media.", "/mediafilez.");
             } else {
                 downloadURL = String.format(
-                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier&version=%s",
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier&version=%s",
                         mod.getName(),
                         modVersionToUse.getVersion()
                 );
             }
 
             var downloadBytes = downloadFile(downloadURL, client);
-            if (downloadBytes == null) continue;
+            if (downloadBytes == null) {
+                log.warn("\tFailed to fetch jar: {}", downloadURL);
+                log.warn("\tExpanding maven search");
+                if (mod.getSource() == null) {
+                    downloadURL = String.format(
+                            "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier&version=%s",
+                            mod.getName(),
+                            modVersionToUse.getVersion()
+                    );
+                    downloadBytes = downloadFile(downloadURL, client);
+                }
+            }
+            ;
+
+            if (downloadBytes == null) {
+                log.warn("\tFailed to fetch jar: {}", downloadURL);
+                continue;
+            }
 
             Files.write(targetPath, downloadBytes);
 
@@ -353,7 +370,6 @@ public class Updater {
                 .build();
         val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
         if (!(response.statusCode() == 200 || response.statusCode() == 302)) {
-            log.warn("\tFailed to fetch jar: {} - {}", downloadURL, response.statusCode());
             return null;
         }
         return response.body();
