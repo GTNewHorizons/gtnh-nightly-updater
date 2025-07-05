@@ -49,6 +49,10 @@ public class Main {
                 updater.addLocalAssets(assets, localAssets);
             }
 
+            if (options.getLatestRelease) {
+                updater.updateModsFromMaven(assets.getMods());
+            }
+
             updater.cacheMods(assets, modExclusions, modCacheDir);
             for (val instance : options.instances) {
                 log.info("Updating {} with side {}", instance.config.minecraftDir, instance.config.side);
@@ -113,6 +117,14 @@ public class Main {
 
         @CommandLine.Option(names = {"-M", "--target-manifest"}, required = true, description = "Which manifest to use as source of mod versions.; Valid values: ${COMPLETION-CANDIDATES}")
         protected TargetManifest targetManifest;
+
+        @CommandLine.Option(names = {"--get-latest"}, description = {
+                "[USE AT YOUR OWN RISK]",
+                "Get the latest release for all GTNH hosted mods according to the specified manifest.",
+                "Daily will always pull the latest non -pre release.",
+                "Experimental will always pull the latest release",
+        })
+        protected boolean getLatestRelease = false;
 
         @CommandLine.Option(names = {"-C", "--configs-only"}, description = "Only update configs (version pulled is based off the target manifest)")
         protected boolean configsOnly = false;
