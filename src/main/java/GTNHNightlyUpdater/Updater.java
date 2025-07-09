@@ -143,16 +143,20 @@ public class Updater {
                     continue;
                 }
                 for (Iterator<Map.Entry<String, Path>> iterator = packMods.entrySet().iterator(); iterator.hasNext(); ) {
+                    boolean deleted = false;
                     Map.Entry<String, Path> entry = iterator.next();
-                    if (entry.getValue().getFileName().toString().equals(oldVersion.getGithubName()) && !keptMods.contains(entry.getKey())) {
-                        Files.deleteIfExists(entry.getValue());
-                        oldFileName = oldVersion.getGithubName();
-                        iterator.remove();
-                    }
                     if (entry.getValue().getFileName().toString().equals(oldVersion.getFileName()) && !keptMods.contains(entry.getKey())) {
                         Files.deleteIfExists(entry.getValue());
                         oldFileName = oldVersion.getFileName();
                         iterator.remove();
+                        deleted = true;
+                    }
+                    if (entry.getValue().getFileName().toString().equals(oldVersion.getGithubName()) && !keptMods.contains(entry.getKey())) {
+                        Files.deleteIfExists(entry.getValue());
+                        oldFileName = oldVersion.getGithubName();
+                        if (!deleted) {
+                            iterator.remove();
+                        }
                     }
                 }
             }
@@ -170,6 +174,12 @@ public class Updater {
                     continue;
                 }
                 if (!entry.getKey().toString().equals(newModFileName) && versionPattern_OldName.matcher(entry.getKey()).matches() && !keptMods.contains(entry.getKey())) {
+                    Files.deleteIfExists(entry.getValue());
+                    oldFileName = entry.getValue().getFileName().toString();
+                    iterator.remove();
+                    continue;
+                }
+                if (!entry.getKey().toString().equals(newModFileName) && newModFileName.equals("+"+entry.getKey().toString()) && !keptMods.contains(entry.getKey())) {
                     Files.deleteIfExists(entry.getValue());
                     oldFileName = entry.getValue().getFileName().toString();
                     iterator.remove();
@@ -546,8 +556,13 @@ public class Updater {
         for (val mod : asset.getMods()) {
             mod.setSide("NONE");
 
+            String modName = mod.getName();
+            // Unimixins needs to loaded before all other mods
+            if (mod.getName().equals("UniMixins")) {
+                modName = "+" + modName;
+            }
             for (Assets.Version version : mod.getVersions()) {
-                version.setFileName(String.format("%s-%s.jar", mod.getName(), version.getVersion()));
+                version.setFileName(String.format("%s-%s.jar", modName, version.getVersion()));
             }
         }
 
