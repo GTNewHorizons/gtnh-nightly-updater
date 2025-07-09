@@ -332,7 +332,29 @@ public class Updater {
 
             String downloadURL = modVersionToUse.getBrowserDownloadUrl();
 
+            // force maven download for private repos
+            if (mod.isPrivate()) {
+                downloadURL = String.format(
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier&version=%s",
+                        mod.getName(),
+                        modVersionToUse.getVersion()
+                );
+            }
+
             var downloadBytes = downloadFile(downloadURL, client);
+
+            if (downloadBytes == null) {
+                log.warn("\tFailed to fetch jar: {}", downloadURL);
+                log.warn("\tExpanding maven search");
+                if (mod.getSource() == null) {
+                    downloadURL = String.format(
+                            "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier&version=%s",
+                            mod.getName(),
+                            modVersionToUse.getVersion()
+                    );
+                    downloadBytes = downloadFile(downloadURL, client);
+                }
+            }
 
             if (downloadBytes == null) {
                 log.warn("\tFailed to fetch jar: {}", downloadURL);

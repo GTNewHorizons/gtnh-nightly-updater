@@ -25,6 +25,8 @@ public class Assets {
         private final String name;
         private String side;
         private final String source;
+        @SerializedName("private")
+        private boolean isPrivate;
         @SerializedName("latest_version")
         private String latestVersion;
         @NonNull
