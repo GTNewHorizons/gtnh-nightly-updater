@@ -111,7 +111,10 @@ public class Updater {
                 continue;
             }
 
-            Assets.Version modVersionToUse = mod.getVersions().stream().filter(v -> v.getVersion().equals(mod.getLatestVersion())).findFirst().orElse(null);
+            Assets.Version modVersionToUse = mod.getVersions().stream()
+                    .filter(v -> v.getVersion().equals(mod.getLatestVersion()))
+                    .findFirst()
+                    .orElse(null);
 
             if (modVersionToUse == null) {
                 log.warn("\tUnable to determine mod version for {}", mod.getName());
@@ -331,7 +334,11 @@ public class Updater {
 
             // force maven download for private repos
             if (mod.isPrivate()) {
-                downloadURL = String.format("https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier&version=%s", mod.getName(), modVersionToUse.getVersion());
+                downloadURL = String.format(
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier&version=%s",
+                        mod.getName(),
+                        modVersionToUse.getVersion()
+                );
             }
 
             var downloadBytes = downloadFile(downloadURL, client);
@@ -340,7 +347,11 @@ public class Updater {
                 log.warn("\tFailed to fetch jar: {}", downloadURL);
                 log.warn("\tExpanding maven search");
                 if (mod.getSource() == null) {
-                    downloadURL = String.format("https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier&version=%s", mod.getName(), modVersionToUse.getVersion());
+                    downloadURL = String.format(
+                            "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier&version=%s",
+                            mod.getName(),
+                            modVersionToUse.getVersion()
+                    );
                     downloadBytes = downloadFile(downloadURL, client);
                 }
             }
@@ -367,7 +378,11 @@ public class Updater {
 
             targetPath = targetPath.resolveSibling(String.format("%s-%s-multimc.zip", mod.getName(), modVersionToUse.getVersion()));
             if (!Files.exists(targetPath)) {
-                downloadURL = String.format("https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=zip&maven.classifier=multimc&version=%s", mod.getName(), modVersionToUse.getVersion());
+                downloadURL = String.format(
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=zip&maven.classifier=multimc&version=%s",
+                        mod.getName(),
+                        modVersionToUse.getVersion()
+                );
 
                 downloadBytes = downloadFile(downloadURL, client);
                 if (downloadBytes == null) return;
@@ -377,7 +392,11 @@ public class Updater {
 
             targetPath = targetPath.resolveSibling(String.format("%s-%s-forgePatches.jar", mod.getName(), modVersionToUse.getVersion()));
             if (!Files.exists(targetPath)) {
-                downloadURL = String.format("https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier=forgePatches&version=%s", mod.getName(), modVersionToUse.getVersion());
+                downloadURL = String.format(
+                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier=forgePatches&version=%s",
+                        mod.getName(),
+                        modVersionToUse.getVersion()
+                );
 
                 downloadBytes = downloadFile(downloadURL, client);
                 if (downloadBytes == null) return;
@@ -388,7 +407,10 @@ public class Updater {
     }
 
     private static byte[] downloadFile(String downloadURL, HttpClient client) throws IOException, InterruptedException {
-        val request = HttpRequest.newBuilder().uri(URI.create(downloadURL)).GET().build();
+        val request = HttpRequest.newBuilder()
+                .uri(URI.create(downloadURL))
+                .GET()
+                .build();
         val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
         if (!(response.statusCode() == 200 || response.statusCode() == 302)) {
             return null;
@@ -408,8 +430,14 @@ public class Updater {
 
             log.info("\t{}", mod.getName());
 
-            String url = String.format("https://nexus.gtnewhorizons.com/service/rest/v1/search/assets?&sort=version&repository=public&name=%s&maven.extension=jar&maven.classifier", mod.getName());
-            var req = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();
+            String url = String.format(
+                    "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets?&sort=version&repository=public&name=%s&maven.extension=jar&maven.classifier",
+                    mod.getName()
+            );
+            var req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
             var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
 
             val mavenIndex = JsonParser.parse(resp.body(), MavenSearch.Index.class);
@@ -419,7 +447,10 @@ public class Updater {
             }
             var continuationToken = mavenIndex.continuationToken();
             while (continuationToken != null) {
-                req = HttpRequest.newBuilder().uri(URI.create(url + "&continuationToken=" + continuationToken)).GET().build();
+                req = HttpRequest.newBuilder()
+                        .uri(URI.create(url + "&continuationToken=" + continuationToken))
+                        .GET()
+                        .build();
                 resp = client.send(req, HttpResponse.BodyHandlers.ofString());
                 val tempMavenIndex = JsonParser.parse(resp.body(), MavenSearch.Index.class);
                 mavenIndex.items().addAll(tempMavenIndex.items());
@@ -440,10 +471,14 @@ public class Updater {
                 String mavenFilename = FilenameUtils.getName(version.downloadUrl());
 
                 // Check if the version already exists
-                val existingVersion = mod.getVersions().stream().filter(v -> v.getVersion().equals(versionString)).findFirst();
+                val existingVersion = mod.getVersions().stream()
+                        .filter(v -> v.getVersion().equals(versionString))
+                        .findFirst();
 
                 if (!existingVersion.isPresent()) {
-                    Assets.Version newVersion = new Assets.Version(versionString);
+                    Assets.Version newVersion = new Assets.Version(
+                            versionString
+                    );
                     newVersion.setBrowserDownloadUrl(version.downloadUrl());
                     newVersion.setFileName(String.format("%s-%s.jar", mod.getName(), versionString));
                     mod.getVersions().add(newVersion);
@@ -459,7 +494,10 @@ public class Updater {
             if (mod.getVersions() != null && !mod.getVersions().isEmpty()) {
                 mod.getVersions().sort(Comparator.comparing(v -> new DefaultArtifactVersion(((Assets.Version) v).getVersion())).reversed());
 
-                mod.setLatestVersion(options.targetManifest == Main.Options.TargetManifest.DAILY ? mod.getVersions().stream().filter(v -> !v.getVersion().endsWith("-pre")).findFirst().get().getVersion() : mod.getVersions().getFirst().getVersion());
+                mod.setLatestVersion(options.targetManifest == Main.Options.TargetManifest.DAILY ?
+                        mod.getVersions().stream().filter(v -> !v.getVersion().endsWith("-pre")).findFirst().get().getVersion() :
+                        mod.getVersions().getFirst().getVersion()
+                );
             }
 
         }
@@ -470,7 +508,10 @@ public class Updater {
 
         @Cleanup HttpClient client = HttpClient.newHttpClient();
 
-        HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://raw.githubusercontent.com/GTNewHorizons/DreamAssemblerXXL/refs/heads/master/gtnh-assets.json")).GET().build();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://raw.githubusercontent.com/GTNewHorizons/DreamAssemblerXXL/refs/heads/master/gtnh-assets.json"))
+                .GET()
+                .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {
@@ -489,7 +530,10 @@ public class Updater {
             }
         });
 
-        request = HttpRequest.newBuilder().uri(URI.create(String.format("https://raw.githubusercontent.com/GTNewHorizons/DreamAssemblerXXL/refs/heads/master/releases/manifests/%s.json", options.targetManifest.name().toLowerCase()))).GET().build();
+        request = HttpRequest.newBuilder()
+                .uri(URI.create(String.format("https://raw.githubusercontent.com/GTNewHorizons/DreamAssemblerXXL/refs/heads/master/releases/manifests/%s.json", options.targetManifest.name().toLowerCase())))
+                .GET()
+                .build();
         response = client.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {
             throw new IOException("Failed to fetch manifest file: HTTP " + response.statusCode());
@@ -527,7 +571,14 @@ public class Updater {
     Map<String, Path> gatherExistingMods(Path minecraftModsDir) throws IOException {
         log.info("Gathering existing mods");
 
-        return Files.list(minecraftModsDir).filter(path -> path.toString().endsWith(".jar")).collect(Collectors.toMap(path -> path.getFileName().toString(), path -> path, (existing, replacement) -> existing, TreeMap::new));
+        return Files.list(minecraftModsDir)
+                .filter(path -> path.toString().endsWith(".jar"))
+                .collect(Collectors.toMap(
+                        path -> path.getFileName().toString(),
+                        path -> path,
+                        (existing, replacement) -> existing,
+                        TreeMap::new
+                ));
     }
 
     static String escapeChars = "\\.?![]{}()<>*+-=^$|";
