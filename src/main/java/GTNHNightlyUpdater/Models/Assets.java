@@ -33,13 +33,15 @@ public class Assets {
 
     @Data
     public static final class Version {
-        private String filename;
-        private final boolean prerelease;
+        @SerializedName("filename")
+        private String githubName;
         @SerializedName("version_tag")
         private final String version;
         @SerializedName("download_url")
         private String downloadUrl;
-        private String mavenFilename;
+        @SerializedName("browser_download_url")
+        private String browserDownloadUrl;
+        private transient String fileName;
         private transient Path cachePath;
         private transient List<Path> extraAssets = new ArrayList<>();
     }

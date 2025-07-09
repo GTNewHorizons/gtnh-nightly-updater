@@ -2,6 +2,7 @@ package GTNHNightlyUpdater;
 
 import GTNHNightlyUpdater.Models.Assets;
 import GTNHNightlyUpdater.Models.MavenSearch;
+import GTNHNightlyUpdater.Utils.NameSanitizer;
 import com.google.gson.internal.LinkedTreeMap;
 import lombok.Cleanup;
 import lombok.extern.log4j.Log4j2;
@@ -10,6 +11,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -21,8 +23,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -34,6 +38,8 @@ import java.util.zip.ZipInputStream;
 
 @Log4j2(topic = "GTNHNightlyUpdater")
 public class Updater {
+    private static final int KEEP_CACHED_FILES_COUNT = 10;
+
     private final Main.Options options;
 
     public Updater(Main.Options options) {
@@ -48,11 +54,6 @@ public class Updater {
             val side = split.length > 1 ? split[1].trim() : "BOTH";
             Assets.Mod mod = new Assets.Mod(modName, null, new ArrayList<>());
             mod.setSide(side);
-            try {
-                updateModFromMaven(mod);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
             assets.getMods().add(mod);
         }
     }
@@ -71,10 +72,15 @@ public class Updater {
             }
             if (mod.getSide() != null && mod.getSide().equals("NONE")) {
                 for (val version : mod.getVersions()) {
-                    if (packMods.containsKey(version.getFilename())) {
-                        log.info("\tDeleting mod with side of NONE: {} - {}", mod.getName(), version.getFilename());
-                        Files.deleteIfExists(packMods.get(version.getFilename()));
-                        packMods.remove(version.getFilename());
+                    if (packMods.containsKey(version.getGithubName())) {
+                        log.info("\tDeleting mod with side of NONE: {} - {}", mod.getName(), version.getGithubName());
+                        Files.deleteIfExists(packMods.get(version.getGithubName()));
+                        packMods.remove(version.getGithubName());
+                    }
+                    if (packMods.containsKey(version.getFileName())) {
+                        log.info("\tDeleting mod with side of NONE: {} - {}", mod.getName(), version.getFileName());
+                        Files.deleteIfExists(packMods.get(version.getFileName()));
+                        packMods.remove(version.getFileName());
                     }
                 }
                 continue;
@@ -86,12 +92,19 @@ public class Updater {
                 continue;
             }
 
+
             if (modExclusions.contains(mod.getName())) {
                 for (val version : mod.getVersions()) {
-                    if (packMods.containsKey(version.getFilename())) {
-                        log.info("\tDeleting excluded mod: {} - {}", mod.getName(), version.getFilename());
-                        Files.deleteIfExists(packMods.get(version.getFilename()));
-                        packMods.remove(version.getFilename());
+                    if (version.getGithubName() != null && packMods.containsKey(version.getGithubName())) {
+                        log.info("\tDeleting excluded mod: {} - {}", mod.getName(), version.getGithubName());
+                        Files.deleteIfExists(packMods.get(version.getGithubName()));
+                        packMods.remove(version.getGithubName());
+                        break;
+                    }
+                    if (packMods.containsKey(version.getFileName())) {
+                        log.info("\tDeleting excluded mod: {} - {}", mod.getName(), version.getFileName());
+                        Files.deleteIfExists(packMods.get(version.getFileName()));
+                        packMods.remove(version.getFileName());
                         break;
                     }
                 }
@@ -129,12 +142,16 @@ public class Updater {
                 if (oldVersion.getVersion().equals(modVersionToUse.getVersion())) {
                     continue;
                 }
-                String toRemove = oldVersion.getFilename();
                 for (Iterator<Map.Entry<String, Path>> iterator = packMods.entrySet().iterator(); iterator.hasNext(); ) {
                     Map.Entry<String, Path> entry = iterator.next();
-                    if (entry.getValue().getFileName().toString().equals(toRemove) && !keptMods.contains(entry.getKey())) {
+                    if (entry.getValue().getFileName().toString().equals(oldVersion.getGithubName()) && !keptMods.contains(entry.getKey())) {
                         Files.deleteIfExists(entry.getValue());
-                        oldFileName = oldVersion.getFilename();
+                        oldFileName = oldVersion.getGithubName();
+                        iterator.remove();
+                    }
+                    if (entry.getValue().getFileName().toString().equals(oldVersion.getFileName()) && !keptMods.contains(entry.getKey())) {
+                        Files.deleteIfExists(entry.getValue());
+                        oldFileName = oldVersion.getFileName();
                         iterator.remove();
                     }
                 }
@@ -142,6 +159,7 @@ public class Updater {
 
             // delete non-matching versions to handle local builds (usually -pre, but not name changes)
             Pattern versionPattern = Pattern.compile(escapeQuotes(newModFileName).replace(escapeQuotes(modVersionToUse.getVersion()), ".*"), Pattern.CASE_INSENSITIVE);
+            Pattern versionPattern_OldName = Pattern.compile(escapeQuotes(modVersionToUse.getGithubName()).replace(escapeQuotes(modVersionToUse.getVersion()), ".*"), Pattern.CASE_INSENSITIVE);
 
             for (Iterator<Map.Entry<String, Path>> iterator = packMods.entrySet().iterator(); iterator.hasNext(); ) {
                 Map.Entry<String, Path> entry = iterator.next();
@@ -149,6 +167,13 @@ public class Updater {
                     Files.deleteIfExists(entry.getValue());
                     oldFileName = entry.getValue().getFileName().toString();
                     iterator.remove();
+                    continue;
+                }
+                if (!entry.getKey().toString().equals(newModFileName) && versionPattern_OldName.matcher(entry.getKey()).matches() && !keptMods.contains(entry.getKey())) {
+                    Files.deleteIfExists(entry.getValue());
+                    oldFileName = entry.getValue().getFileName().toString();
+                    iterator.remove();
+                    continue;
                 }
             }
 
@@ -268,14 +293,32 @@ public class Updater {
                 continue;
             }
 
-
-            Path targetPath = modCacheDir.resolve(mod.getName().replaceAll("[<>:\"/\\\\|?*]", "")).resolve(modVersionToUse.getFilename());
+            String fileName = NameSanitizer.sanitizeFileNameWithExtension(modVersionToUse.getFileName(), "");
+            Path targetPath = modCacheDir.resolve(NameSanitizer.sanitizeComponent(mod.getName(), "")).resolve(fileName);
             if (Files.notExists(targetPath.getParent())) {
                 Files.createDirectory(targetPath.getParent());
             }
 
-            if (Files.exists(modCacheDir.resolve(modVersionToUse.getFilename()))) {
-                Files.move(modCacheDir.resolve(modVersionToUse.getFilename()), targetPath);
+            var cacheFiles = new File(targetPath.getParent().toString()).listFiles();
+            if (cacheFiles != null && cacheFiles.length > KEEP_CACHED_FILES_COUNT) {
+                log.info("\t[{}] Cleaning cache", mod.getName());
+                Arrays.sort(cacheFiles, Comparator.comparingLong(File::lastModified));
+                for (int i = 0; i < cacheFiles.length - KEEP_CACHED_FILES_COUNT; i++) {
+                    if (cacheFiles[i].isFile()) {
+                        boolean deleted = cacheFiles[i].delete();
+                        if (deleted) {
+                            log.info("\t\tDeleted {}", cacheFiles[i].getName());
+                        } else {
+                            log.info("\t\tFailed to Delete {}", cacheFiles[i].getName());
+                        }
+
+                    }
+                }
+            }
+
+            // move from root mods dir to named directory
+            if (Files.exists(modCacheDir.resolve(fileName))) {
+                Files.move(modCacheDir.resolve(fileName), targetPath);
             }
 
             modVersionToUse.setCachePath(targetPath);
@@ -287,31 +330,9 @@ public class Updater {
 
             log.info("\t{}", mod.getName());
 
-            String downloadURL;
-            if (mod.getSource() != null) {
-                downloadURL = modVersionToUse.getDownloadUrl().replace("/media.", "/mediafilez.");
-            } else {
-                downloadURL = String.format(
-                        "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&group=com.github.GTNewHorizons&name=%s&maven.extension=jar&maven.classifier&version=%s",
-                        mod.getName(),
-                        modVersionToUse.getVersion()
-                );
-            }
+            String downloadURL = modVersionToUse.getBrowserDownloadUrl();
 
             var downloadBytes = downloadFile(downloadURL, client);
-            if (downloadBytes == null) {
-                log.warn("\tFailed to fetch jar: {}", downloadURL);
-                log.warn("\tExpanding maven search");
-                if (mod.getSource() == null) {
-                    downloadURL = String.format(
-                            "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets/download?repository=public&name=%s&maven.extension=jar&maven.classifier&version=%s",
-                            mod.getName(),
-                            modVersionToUse.getVersion()
-                    );
-                    downloadBytes = downloadFile(downloadURL, client);
-                }
-            }
-            ;
 
             if (downloadBytes == null) {
                 log.warn("\tFailed to fetch jar: {}", downloadURL);
@@ -375,84 +396,88 @@ public class Updater {
         return response.body();
     }
 
-    void updateModFromMaven(Assets.Mod mod) throws IOException, InterruptedException {
+    void updateModsFromMaven(List<Assets.Mod> mods) throws IOException, InterruptedException {
+        log.info("Getting mod versions from maven");
         @Cleanup HttpClient client = HttpClient.newHttpClient();
 
-        // null source = our maven
-        if (mod.getSource() != null || ((mod.getSide() != null && mod.getSide().equals("NONE")))) {
-            return;
-        }
+        for (val mod : mods) {
+            // null source = our maven
+            if (mod.getSource() != null || ((mod.getSide() != null && mod.getSide().equals("NONE")))) {
+                continue;
+            }
 
-        String url = String.format(
-                "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets?&sort=version&repository=public&name=%s&maven.extension=jar&maven.classifier",
-                mod.getName()
-        );
-        var req = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .GET()
-                .build();
-        var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            log.info("\t{}", mod.getName());
 
-        val mavenIndex = JsonParser.parse(resp.body(), MavenSearch.Index.class);
-        if (mavenIndex == null) {
-            log.warn("Unable to parse maven response for {}", mod.getName());
-            return;
-        }
-        var continuationToken = mavenIndex.continuationToken();
-        while (continuationToken != null) {
-            req = HttpRequest.newBuilder()
-                    .uri(URI.create(url + "&continuationToken=" + continuationToken))
+            String url = String.format(
+                    "https://nexus.gtnewhorizons.com/service/rest/v1/search/assets?&sort=version&repository=public&name=%s&maven.extension=jar&maven.classifier",
+                    mod.getName()
+            );
+            var req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
                     .GET()
                     .build();
-            resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-            val tempMavenIndex = JsonParser.parse(resp.body(), MavenSearch.Index.class);
-            mavenIndex.items().addAll(tempMavenIndex.items());
-            continuationToken = tempMavenIndex.continuationToken();
-        }
+            var resp = client.send(req, HttpResponse.BodyHandlers.ofString());
 
-        val versions = mavenIndex.items();
-        if (versions.size() == 0) {
-            log.warn("Unable to parse maven versions for {}", mod.getName());
-            return;
-        }
-
-        versions.sort(Comparator.comparing(MavenSearch.Item::lastModified));
-        // Update or add versions
-        for (val version : versions) {
-            String versionString = version.maven2().version();
-            String mavenFilename = FilenameUtils.getName(version.downloadUrl());
-
-            // Check if the version already exists
-            val existingVersion = mod.getVersions().stream()
-                    .filter(v -> v.getVersion().equals(versionString))
-                    .findFirst();
-
-            if (existingVersion.isPresent()) {
-                existingVersion.get().setFilename(mavenFilename);
-                existingVersion.get().setDownloadUrl(version.downloadUrl());
-            } else {
-                Assets.Version newVersion = new Assets.Version(
-                        versionString.endsWith("-pre"),
-                        versionString
-                );
-                newVersion.setDownloadUrl(version.downloadUrl());
-                newVersion.setFilename(mavenFilename);
-                mod.getVersions().add(newVersion);
+            val mavenIndex = JsonParser.parse(resp.body(), MavenSearch.Index.class);
+            if (mavenIndex == null) {
+                log.warn("Unable to parse maven response for {}", mod.getName());
+                continue;
             }
-        }
+            var continuationToken = mavenIndex.continuationToken();
+            while (continuationToken != null) {
+                req = HttpRequest.newBuilder()
+                        .uri(URI.create(url + "&continuationToken=" + continuationToken))
+                        .GET()
+                        .build();
+                resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+                val tempMavenIndex = JsonParser.parse(resp.body(), MavenSearch.Index.class);
+                mavenIndex.items().addAll(tempMavenIndex.items());
+                continuationToken = tempMavenIndex.continuationToken();
+            }
 
-        // edge cases for mods
-        // reason: 0.55 -> 0.6+
-        if (mod.getName().equals("BlockLimiter") || mod.getName().equals("oauth")) {
-            mod.getVersions().removeIf(v -> v.getFilename().contains("-1.7.10-"));
-        }
+            val versions = mavenIndex.items();
+            if (versions.size() == 0) {
+                log.warn("Unable to parse maven versions for {}", mod.getName());
+                continue;
+            }
 
-        if (mod.getVersions() != null) {
-            mod.getVersions().sort(Comparator.comparing(v -> new DefaultArtifactVersion(v.getVersion())));
-        }
+            versions.sort(Comparator.comparing(MavenSearch.Item::lastModified));
+            // Update or add versions
+            for (val version : versions) {
+                String versionString = version.maven2().version();
 
-        if (mod.getVersions().size() > 0) {
-            mod.setLatestVersion(mod.getVersions().getLast().getVersion());
+                String mavenFilename = FilenameUtils.getName(version.downloadUrl());
+
+                // Check if the version already exists
+                val existingVersion = mod.getVersions().stream()
+                        .filter(v -> v.getVersion().equals(versionString))
+                        .findFirst();
+
+                if (!existingVersion.isPresent()) {
+                    Assets.Version newVersion = new Assets.Version(
+                            versionString
+                    );
+                    newVersion.setBrowserDownloadUrl(version.downloadUrl());
+                    newVersion.setFileName(String.format("%s-%s.jar", mod.getName(), versionString));
+                    mod.getVersions().add(newVersion);
+                }
+            }
+
+            // edge cases for mods
+            // reason: 0.55 -> 0.6+
+            if (mod.getName().equals("BlockLimiter")) {
+                mod.getVersions().removeIf(v -> v.getVersion().equals("0.55"));
+            }
+
+            if (mod.getVersions() != null && !mod.getVersions().isEmpty()) {
+                mod.getVersions().sort(Comparator.comparing(v -> new DefaultArtifactVersion(((Assets.Version) v).getVersion())).reversed());
+
+                mod.setLatestVersion(options.targetManifest == Main.Options.TargetManifest.DAILY ?
+                        mod.getVersions().stream().filter(v -> !v.getVersion().endsWith("-pre")).findFirst().get().getVersion() :
+                        mod.getVersions().getFirst().getVersion()
+                );
+            }
+
         }
     }
 
@@ -472,6 +497,17 @@ public class Updater {
         }
         val asset = JsonParser.parse(response.body(), Assets.Asset.class);
 
+        asset.getMods().parallelStream().forEach(mod -> {
+            // only non-gtnh mods
+            if (mod.getSource() != null) {
+                mod.getVersions().parallelStream().forEach(version -> {
+                    if (version.getDownloadUrl() != null) {
+                        version.setBrowserDownloadUrl(version.getDownloadUrl());
+                    }
+                });
+            }
+        });
+
         request = HttpRequest.newBuilder()
                 .uri(URI.create(String.format("https://raw.githubusercontent.com/GTNewHorizons/DreamAssemblerXXL/refs/heads/master/releases/manifests/%s.json", options.targetManifest.name().toLowerCase())))
                 .GET()
@@ -487,6 +523,10 @@ public class Updater {
         // set all sides to none; manifest will set the side
         for (val mod : asset.getMods()) {
             mod.setSide("NONE");
+
+            for (Assets.Version version : mod.getVersions()) {
+                version.setFileName(String.format("%s-%s.jar", mod.getName(), version.getVersion()));
+            }
         }
 
         for (val mod : ((LinkedTreeMap<String, LinkedTreeMap<String, String>>) map.get("github_mods")).entrySet()) {
@@ -521,7 +561,7 @@ public class Updater {
 
     static String escapeChars = "\\.?![]{}()<>*+-=^$|";
 
-    String escapeQuotes(String str) {
+    private String escapeQuotes(String str) {
         if (str != null && str.length() > 0) {
             return str.replaceAll("[\\W]", "\\\\$0"); // \W designates non-word characters
         }

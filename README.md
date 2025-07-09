@@ -34,7 +34,8 @@ After that the update process will be:
 |Option| Description                                                               |  
 |---|---------------------------------------------------------------------------|
 |-M, --target-manifest| Required. Specify which release to update to the latest version of. (DAILY or EXPERIMENTAL) |
-|-c, --configs| Optional. Only update configs (version pulled is based off the nightly manifest) |
+|--get-latest| Optional. Query the GTNH maven for the latest version of a mod before its in the next daily/experimental. DANGER |
+|-c, --configs| Optional. Only update configs (version pulled is based off the target manifest) |
 |-C, --only-configs| Optional. Only update configs |
 |--add| Required. Can be repeated. Adds an instance to updater using the below flags                    |
 |-m, --minecraft| Required. Path to the target Minecraft directory.                         
@@ -54,10 +55,11 @@ Linux: `$XDG_CACHE_HOME/gtnh-nightly-updater` or `~/.cache/gtnh-nightly-updater`
 Cached mods can be found in the `mods` subdirectory.
 
 ### Local Assets and Exclusions
+The following 2 files can be placed in the cache directory to include or exclude certain mods
 Local Asset File:
 - File Name: local-assets.txt
 - Format: MOD_NAME|SIDE
-- List of mods to be included in addition to the nightly mods list. Use mod name from the maven. (Backhand|BOTH, etc) 
+- List of mods to be included in addition to the manifest's mods list. Use mod name from the GTNH maven. (RTG|BOTH, etc)
 
 Exclusions:  
 - File Name: mod-exclusions.txt
