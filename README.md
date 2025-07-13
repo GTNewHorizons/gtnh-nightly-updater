@@ -35,8 +35,8 @@ After that the update process will be:
 |---|---------------------------------------------------------------------------|
 |-M, --target-manifest| Required. Specify which release to update to the latest version of. (DAILY or EXPERIMENTAL) |
 |--get-latest| Optional. Query the GTNH maven for the latest version of a mod before its in the next daily/experimental. DANGER |
-|-c, --configs| Optional. Only update configs (version pulled is based off the target manifest) |
-|-C, --only-configs| Optional. Only update configs |
+|-c, --configs| Optional. Update configs in addition to mods (version pulled is based off the target manifest) |
+|-C, --only-configs| Optional. Only update configs (version pulled is based off the target manifest) |
 |--add| Required. Can be repeated. Adds an instance to updater using the below flags                    |
 |-m, --minecraft| Required. Path to the target Minecraft directory.                         
 | -s, --side| Required. Specify the side (CLIENT or SERVER).                            |
